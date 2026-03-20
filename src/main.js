@@ -90,8 +90,13 @@ function create() {
 
     const enemyTexture = enemyGraphics.generateTexture('cookieEnemy', 50, 50);
 
-    // 放在屏幕右侧预览，什么都不做
-    this.enemyPreview = this.add.sprite(600, 400, 'cookieEnemy');
+    // 用 physics.add.sprite() — 让敌人受重力影响！
+    this.enemyPreview = this.physics.add.sprite(600, 200, 'cookieEnemy');
+
+    // 设置物理属性
+    this.enemyPreview.setBounce(0.1);           // 轻微弹跳
+    this.enemyPreview.setCollideWorldBounds(true); // 不会跑出屏幕
+    this.enemyPreview.body.setSize(40, 45);     // 碰撞箱稍小一点，更精确
 
     // --- 玩家 (红色方块) ---
     // 用图形生成纹理作为临时玩家
@@ -113,6 +118,10 @@ function create() {
     // --- 碰撞检测：玩家碰到地面和平台 ---
     this.physics.add.collider(this.player, ground);
     this.physics.add.collider(this.player, platforms);
+
+    // --- 敌人也要和平台/地面碰撞（不会掉下去）---
+    this.physics.add.collider(this.enemyPreview, ground);
+    this.physics.add.collider(this.enemyPreview, platforms);
 
     // --- UI: 调试信息 ---
     this.debugText = this.add.text(20, 20, '', {
