@@ -169,6 +169,15 @@ function create() {
     // --- 玩家血条 UI (左上角) — origin=0，左端固定！
     this.playerBarBG = this.add.rectangle(200, 35, 160, 20, 0x333333).setOrigin(0);
     this.playerBarFG = this.add.rectangle(200, 35, 160, 20, 0x00ff00).setOrigin(0);
+    
+    // 方案 B：强制可见 + 调试检查
+    this.playerBarFG.setVisible(true);
+    console.log('🔍 [血条初始化] 玩家血条:', {
+        width: this.playerBarFG.width,
+        scaleX: this.playerBarFG.scaleX,
+        visible: this.playerBarFG.visible,
+        alpha: this.playerBarFG.alpha
+    });
 
     // --- 敌人血条 UI (头顶) — origin=0，左端固定！
     this.enemyBarBG = this.add.rectangle(600, 180, 60, 8, 0x333333).setOrigin(0);
@@ -243,15 +252,21 @@ function update() {
             }
         }
 
-        // --- 实时更新玩家血条宽度（Test #2 方案）---
+        // --- 实时更新玩家血条（方案 B: .width + visible check）---
         const playerPct = Math.max(0, this.playerHP / PLAYER_MAX_HP);
         if (this.playerBarFG) {
-            // Test #2: origin=0 + .width
-            this.playerBarFG.width = 160 * playerPct;
+            this.playerBarFG.width = 160 * playerPct;  // ← 改回 .width，配合 setVisible
             
-            // 调试：每次碰撞后打印（不刷屏）
-            if (Math.random() < 0.05) {
-                console.log(`HP=${this.playerHP}, pct=${playerPct.toFixed(2)}, width=${this.playerBarFG.width}`);
+            // 随机调试输出（不刷屏）
+            if (Math.random() < 0.02) {
+                console.log('🔍 [血条 update] 玩家:', {
+                    hp: this.playerHP,
+                    pct: playerPct.toFixed(2),
+                    widthSet: 160 * playerPct,
+                    widthActual: this.playerBarFG.width,
+                    scaleX: this.playerBarFG.scaleX,
+                    visible: this.playerBarFG.visible
+                });
             }
         }
 
@@ -269,10 +284,10 @@ function update() {
                 this.enemyBarFG.setPosition(enemyBarX, enemyBarY);
             }
             
-            // 更新敌人血条宽度
+            // 更新敌人血条（方案 A: setScaleX）
             const enemyPct = Math.max(0, this.enemyPreview.hp / ENEMY_MAX_HP);
             if (this.enemyBarFG) {
-                this.enemyBarFG.width = 60 * enemyPct;
+                this.enemyBarFG.setScaleX(enemyPct);  // ← Scale 是纯视觉变换，更可靠
             }
         }
 
