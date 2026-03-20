@@ -50,6 +50,29 @@ function create() {
     const floorSprite = this.add.sprite(400, 580, 'floor');
     ground.add(floorSprite);
 
+    // --- 平台系统 (Step 2a) ---
+    const platforms = this.physics.add.staticGroup();
+    
+    // 平台数据：x, y 是中心点坐标
+    const platformsData = [
+        { x: 150, y: 480 },   // 最低的平台（接近地面）
+        { x: 350, y: 380 },   // 中等高度
+        { x: 200, y: 280 },   // 较高
+        { x: 450, y: 200 },   // 更高
+        { x: 650, y: 150 },   // 最高平台（接近天花板）
+    ];
+    
+    // 为每个平台创建矩形图形并添加到静态组
+    platformsData.forEach(data => {
+        const platformGraphics = this.make.graphics({ x: 0, y: 0 });
+        platformGraphics.fillStyle(0x6b8c4a);  // 橄榄绿
+        platformGraphics.fillRect(0, 0, 100, 20);
+        const platformTexture = platformGraphics.generateTexture('platform_' + data.x + '_' + data.y, 100, 20);
+        
+        const platformSprite = this.add.sprite(data.x, data.y, platformTexture);
+        platforms.add(platformSprite);
+    });
+
     // --- 玩家 (红色方块) ---
     // 用图形生成纹理作为临时玩家
     const playerGraphics = this.make.graphics({ x: 0, y: 0 });
@@ -67,8 +90,9 @@ function create() {
     // --- 键盘输入 ---
     this.cursors = this.input.keyboard.createCursorKeys();
 
-    // --- 碰撞检测：玩家碰到地面 ---
+    // --- 碰撞检测：玩家碰到地面和平台 ---
     this.physics.add.collider(this.player, ground);
+    this.physics.add.collider(this.player, platforms);
 
     // --- UI: 调试信息 ---
     this.debugText = this.add.text(20, 20, '', {
