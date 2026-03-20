@@ -262,11 +262,12 @@ function update() {
             }
         }
 
-        // --- 玩家血条更新（方案：setScaleX 方法）---
+        // --- 玩家血条更新（正确方案：setSize + updateData）---
         const playerPct = Math.max(0, this.playerHP / PLAYER_MAX_HP);
         if (this.playerBarFG) {
-            this.playerBarFG.setScaleX(playerPct);  // ← 用方法，不是直接改属性
-        }
+            const newWidth = 160 * playerPct;  // 原始宽度是 160
+            this.playerBarFG.geom.setSize(newWidth, 20);  // ← 改几何尺寸
+            this.playerBarFG.setSize(newWidth, 20).updateDisplayOrigin().updateData();  // ← 更新显示
 
         // --- 敌人血条跟随移动 + 宽度更新 ---
         if (this.enemyPreview && this.enemyPreview.active) {
@@ -282,8 +283,9 @@ function update() {
             
             const enemyPct = Math.max(0, this.enemyPreview.hp / ENEMY_MAX_HP);
             if (this.enemyBarFG) {
-                this.enemyBarFG.setScaleX(enemyPct);  // ← 用方法更新缩放
-            }
+                const newWidth = 60 * enemyPct;  // 原始宽度是 60
+                this.enemyBarFG.geom.setSize(newWidth, 8);  // ← 改几何尺寸
+                this.enemyBarFG.setSize(newWidth, 8).updateDisplayOrigin().updateData();
         }
 
     } catch (e) {
