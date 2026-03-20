@@ -19,3 +19,9 @@ build/
 *.swp
 *.swo
 *~
+
+# 🔒 敏感开发文档（不公开分享）
+docs/plans/        # 核心设计思路、架构决策
+docs/debug.md      # debug 方法、踩坑记录
+log/               # 详细开发日志、经验总结
+components_test/README.md  # 内部测试流程
