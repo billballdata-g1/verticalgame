@@ -73,6 +73,26 @@ function create() {
         platforms.add(platformSprite);
     });
 
+    // --- 敌人系统 (Step 2b-1: 只渲染纹理预览) ---
+    const enemyGraphics = this.make.graphics({ x: 0, y: 0 });
+
+    // 饼干身体：浅棕色圆形
+    enemyGraphics.fillStyle(0xc4a574);
+    enemyGraphics.fillCircle(25, 25, 25);
+
+    // 两只小眼睛
+    enemyGraphics.fillStyle(0x1a1a1a);
+    enemyGraphics.fillCircle(18, 20, 3);
+    enemyGraphics.fillCircle(32, 20, 3);
+
+    // 微笑嘴巴（用一个小椭圆模拟）
+    enemyGraphics.fillEllipse(25, 30, 8, 4);
+
+    const enemyTexture = enemyGraphics.generateTexture('cookieEnemy', 50, 50);
+
+    // 放在屏幕右侧预览，什么都不做
+    this.enemyPreview = this.add.sprite(600, 400, 'cookieEnemy');
+
     // --- 玩家 (红色方块) ---
     // 用图形生成纹理作为临时玩家
     const playerGraphics = this.make.graphics({ x: 0, y: 0 });
