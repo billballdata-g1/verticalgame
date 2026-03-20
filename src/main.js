@@ -166,22 +166,32 @@ function create() {
         }
     });
 
-    // --- 玩家血条 UI (左上角) — origin=0，左端固定！
-    this.playerBarBG = this.add.rectangle(200, 35, 160, 20, 0x333333).setOrigin(0);
-    this.playerBarFG = this.add.rectangle(200, 35, 160, 20, 0x00ff00).setOrigin(0);
+    // --- 玩家血条 UI (左上角) — origin=0，左端固定！（完全照抄 Test #2）---
+    this.playerBarBG = this.add.rectangle(200, 35, 160, 20, 0x333333);
+    this.playerBarBG.setOrigin(0);  // ← 分两行写，和 Test #2 一样
     
-    // 方案 B：强制可见 + 调试检查
-    this.playerBarFG.setVisible(true);
-    console.log('🔍 [血条初始化] 玩家血条:', {
+    this.playerBarFG = this.add.rectangle(200, 35, 160, 20, 0x00ff00);
+    this.playerBarFG.setOrigin(0);  // ← 分两行写，和 Test #2 一样
+    
+    // 🔧 深度设置（确保在最上层）
+    this.playerBarFG.setDepth(999);  // ← 最高优先级，不被遮挡
+    this.playerBarBG.setDepth(998);  // ← 背景层在前景之下
+    
+    console.log('🔍 [血条初始化] 玩家:', {
         width: this.playerBarFG.width,
         scaleX: this.playerBarFG.scaleX,
         visible: this.playerBarFG.visible,
-        alpha: this.playerBarFG.alpha
+        alpha: this.playerBarFG.alpha,
+        depth: this.playerBarFG.depth
     });
 
     // --- 敌人血条 UI (头顶) — origin=0，左端固定！
     this.enemyBarBG = this.add.rectangle(600, 180, 60, 8, 0x333333).setOrigin(0);
     this.enemyBarFG = this.add.rectangle(600, 180, 60, 8, 0xff0000).setOrigin(0);
+    
+    // 🔧 深度设置
+    this.enemyBarFG.setDepth(997);  // ← 敌人在玩家之下（视觉上）
+    this.enemyBarBG.setDepth(996);
 
     // --- UI: 调试信息 ---
     this.debugText = this.add.text(20, 20, '', {
@@ -252,31 +262,17 @@ function update() {
             }
         }
 
-        // --- 实时更新玩家血条（方案 B: .width + visible check）---
+        // --- 玩家血条更新（方案：setScaleX 方法）---
         const playerPct = Math.max(0, this.playerHP / PLAYER_MAX_HP);
         if (this.playerBarFG) {
-            this.playerBarFG.width = 160 * playerPct;  // ← 改回 .width，配合 setVisible
-            
-            // 随机调试输出（不刷屏）
-            if (Math.random() < 0.02) {
-                console.log('🔍 [血条 update] 玩家:', {
-                    hp: this.playerHP,
-                    pct: playerPct.toFixed(2),
-                    widthSet: 160 * playerPct,
-                    widthActual: this.playerBarFG.width,
-                    scaleX: this.playerBarFG.scaleX,
-                    visible: this.playerBarFG.visible
-                });
-            }
+            this.playerBarFG.setScaleX(playerPct);  // ← 用方法，不是直接改属性
         }
 
         // --- 敌人血条跟随移动 + 宽度更新 ---
         if (this.enemyPreview && this.enemyPreview.active) {
-            // 计算敌人血条的位置（头顶上方，左对齐）
-            const enemyBarX = this.enemyPreview.x - 30;  // 中心向左偏移 30px（半个血条宽度）
-            const enemyBarY = this.enemyPreview.y - 60;  // 垂直在头顶
+            const enemyBarX = this.enemyPreview.x - 30;
+            const enemyBarY = this.enemyPreview.y - 60;
             
-            // 更新位置（用 setPosition，安全！）
             if (this.enemyBarBG) {
                 this.enemyBarBG.setPosition(enemyBarX, enemyBarY);
             }
@@ -284,10 +280,9 @@ function update() {
                 this.enemyBarFG.setPosition(enemyBarX, enemyBarY);
             }
             
-            // 更新敌人血条（方案 A: setScaleX）
             const enemyPct = Math.max(0, this.enemyPreview.hp / ENEMY_MAX_HP);
             if (this.enemyBarFG) {
-                this.enemyBarFG.setScaleX(enemyPct);  // ← Scale 是纯视觉变换，更可靠
+                this.enemyBarFG.setScaleX(enemyPct);  // ← 用方法更新缩放
             }
         }
 
