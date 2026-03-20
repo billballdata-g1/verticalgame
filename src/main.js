@@ -97,6 +97,10 @@ function create() {
     this.enemyPreview.setBounce(0.1);           // 轻微弹跳
     this.enemyPreview.setCollideWorldBounds(true); // 不会跑出屏幕
     this.enemyPreview.body.setSize(40, 45);     // 碰撞箱稍小一点，更精确
+    
+    // 给敌人初始速度 — 向右巡逻
+    const enemySpeed = 80;
+    this.enemyPreview.setVelocityX(enemySpeed);
 
     // --- 玩家 (红色方块) ---
     // 用图形生成纹理作为临时玩家
@@ -148,6 +152,18 @@ function update() {
         if (this.player.body.touching.down) { // 只有在地面上才能跳
             this.player.setVelocityY(-500);   // 向上速度（负值=向上）
         }
+    }
+
+    // --- 敌人巡逻逻辑：碰到边界后反弹，在范围内来回移动 ---
+    const enemySpeed = 80;   // 比玩家慢很多（250），悠闲感
+
+    // 如果向右走超出右边界 → 反向
+    if (this.enemyPreview.x > 650) {
+        this.enemyPreview.setVelocityX(-enemySpeed);
+    }
+    // 如果向左走超出左边界 → 反向
+    else if (this.enemyPreview.x < 550) {
+        this.enemyPreview.setVelocityX(enemySpeed);
     }
 
     // --- 调试信息 ---
