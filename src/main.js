@@ -4,6 +4,17 @@
 
 import Phaser from 'phaser';
 
+// ============ 全局常量（让 update 函数也能访问）===========
+const PLAYER_MAX_HP = 100;
+const ENEMY_MAX_HP = 60;
+const HP_PER_BLOCK = 5;            // 每个小方块代表多少血量
+const PLAYER_BLOCK_SIZE = 12;
+const PLAYER_MAX_BLOCKS = 20;      // 100HP / 5 = 20 blocks
+const PLAYER_BAR_X = 10;
+const PLAYER_BAR_Y = 10;
+const ENEMY_BLOCK_SIZE = 8;
+const ENEMY_MAX_BLOCKS = 12;       // 60HP / 5 = 12 blocks
+
 // ============ 游戏配置 ============
 const config = {
     type: Phaser.AUTO,
@@ -121,30 +132,31 @@ function create() {
     this.physics.add.collider(this.enemyPreview, ground);
     this.physics.add.collider(this.enemyPreview, platforms);
 
-    // --- 血量系统 (Step 2b-5) ---
+    // ============ 血量系统 ============
     this.playerHP = 100;
-    const PLAYER_MAX_HP = 100;
+    this.gameOver = false;  // 游戏结束标志
+    
     this.enemyPreview.hp = 60;
-    const ENEMY_MAX_HP = 60;
 
     // --- 玩家碰到敌人 → 双向掉血 (改用 overlap，每帧触发) ---
     const playerDamage = 20;
-    const enemyDamage = 30;
+    const enemyDamage = 15; // 每个方块代表 5HP，所以 3 个方块=15HP
 
     this.physics.add.overlap(this.player, this.enemyPreview, (player, enemy) => {
-        // 双方都掉血（但要避免一帧多次触发，用简单的时间戳）
         const now = Date.now();
         
-        if (!this.lastDamageTime || now - this.lastDamageTime > 200) {  // 200ms 冷却
-            // 玩家掉血
+        // 玩家掉血（独立冷却）- 每次掉 20HP（4 个小块）
+        if (!this.playerLastHitTime || now - this.playerLastHitTime > 200) {
             this.playerHP -= playerDamage;
             console.log(`❤️ 玩家受伤！HP: ${this.playerHP}`);
-            
-            // 敌人掉血
+            this.playerLastHitTime = now;
+        }
+        
+        // 敌人掉血（独立冷却）- 每次掉 15HP（3 个小块）
+        if (!enemy.lastHitTime || now - enemy.lastHitTime > 200) {
             enemy.hp -= enemyDamage;
             console.log(`🍪 饼干人受伤！HP: ${enemy.hp}`);
-            
-            this.lastDamageTime = now;
+            enemy.lastHitTime = now;
             
             // 弹开效果 — 玩家向后跳
             const direction = player.x < enemy.x ? -1 : 1;
@@ -155,47 +167,61 @@ function create() {
                 console.log('💥 饼干人被击败了！');
                 enemy.destroy();  // 删除敌人
             }
-            
-            // 检查玩家死亡
-            if (this.playerHP <= 0) {
-                console.log('💀 Game Over! 被饼干人抓住了！');
-                this.gameOverText.setVisible(true);
-                player.setVelocity(0, 0);
-                player.setTint(0x888888);  // 变灰
-            }
+        }
+        
+        // 检查玩家死亡（单独处理，避免在冷却判断内）
+        if (this.playerHP <= 0 && !this.gameOver) {
+            console.log('💀 Game Over! 被饼干人抓住了！');
+            this.gameOverText.setVisible(true);
+            player.setVelocity(0, 0);
+            player.setTint(0x888888);  // 变灰
+            this.gameOver = true;
         }
     });
 
-    // --- 玩家血条 UI (左上角) — origin=0，左端固定！（完全照抄 Test #2）---
-    this.playerBarBG = this.add.rectangle(200, 35, 160, 20, 0x333333);
-    this.playerBarBG.setOrigin(0);  // ← 分两行写，和 Test #2 一样
+    // --- 🔴 玩家血条 UI (左上角) - 用小方块实现！---
+    console.log('[玩家血条] 开始创建，使用全局常量：PLAYER_MAX_BLOCKS =', PLAYER_MAX_BLOCKS);
     
-    this.playerBarFG = this.add.rectangle(200, 35, 160, 20, 0x00ff00);
-    this.playerBarFG.setOrigin(0);  // ← 分两行写，和 Test #2 一样
-    
-    // 🔧 深度设置（确保在最上层）
-    this.playerBarFG.setDepth(999);  // ← 最高优先级，不被遮挡
-    this.playerBarBG.setDepth(998);  // ← 背景层在前景之下
-    
-    console.log('🔍 [血条初始化] 玩家:', {
-        width: this.playerBarFG.width,
-        scaleX: this.playerBarFG.scaleX,
-        visible: this.playerBarFG.visible,
-        alpha: this.playerBarFG.alpha,
-        depth: this.playerBarFG.depth
-    });
+    this.playerHealthBlocks = [];
+    for (let i = 0; i < PLAYER_MAX_BLOCKS; i++) {
+        // 计算位置
+        const blockX = PLAYER_BAR_X + i * PLAYER_BLOCK_SIZE + PLAYER_BLOCK_SIZE/2;
+        const blockY = PLAYER_BAR_Y + PLAYER_BLOCK_SIZE/2;
+        
+        // 创建小方块 - origin=0.5（中心对齐）
+        const block = this.add.rectangle(
+            blockX, 
+            blockY,
+            PLAYER_BLOCK_SIZE - 1, // -1 留小间隙
+            PLAYER_BLOCK_SIZE,
+            0x00ff00               // 绿色
+        ).setOrigin(0.5);
+        
+        block.setDepth(999);       // 确保在最上层
+        this.playerHealthBlocks.push(block);
+    }
+    console.log('✅ [玩家血条] 创建完成：', this.playerHealthBlocks.length, '个小方块');
 
-    // --- 敌人血条 UI (头顶) — origin=0，左端固定！
-    this.enemyBarBG = this.add.rectangle(600, 180, 60, 8, 0x333333).setOrigin(0);
-    this.enemyBarFG = this.add.rectangle(600, 180, 60, 8, 0xff0000).setOrigin(0);
+    // --- 🔴 敌人血条 UI (头顶) - 用小方块实现！---
+    console.log('[敌人血条] 开始创建，使用全局常量：ENEMY_MAX_BLOCKS =', ENEMY_MAX_BLOCKS);
     
-    // 🔧 深度设置
-    this.enemyBarFG.setDepth(997);  // ← 敌人在玩家之下（视觉上）
-    this.enemyBarBG.setDepth(996);
+    this.enemyHealthBlocks = [];
+    for (let i = 0; i < ENEMY_MAX_BLOCKS; i++) {
+        const block = this.add.rectangle(
+            0, 0,
+            ENEMY_BLOCK_SIZE - 1,
+            ENEMY_BLOCK_SIZE,
+            0xff0000               // 红色
+        ).setOrigin(0.5);
+        
+        block.setDepth(998);       // 敌人在玩家之下（视觉上）
+        this.enemyHealthBlocks.push(block);
+    }
+    console.log('✅ [敌人血条] 创建完成：', this.enemyHealthBlocks.length, '个小方块');
 
     // --- UI: 调试信息 ---
-    this.debugText = this.add.text(20, 20, '', {
-        fontSize: '14px',
+    this.debugText = this.add.text(10, 60, '', {
+        fontSize: '12px',
         fill: '#333'
     }).setScrollFactor(0);
 
@@ -217,8 +243,15 @@ function create() {
         this.playerHP = PLAYER_MAX_HP;
         this.enemyPreview.hp = ENEMY_MAX_HP;
         
+        // 重置敌人位置
+        this.enemyPreview.setPosition(600, 200);
+        this.enemyPreview.setActive(true);
+        this.enemyPreview.setVisible(true);
+        this.enemyPreview.setVelocityX(enemySpeed);
+        
         // 隐藏 Game Over 文字
         this.gameOverText.setVisible(false);
+        this.gameOver = false;
         
         console.log('🔄 游戏重新开始！');
     };
@@ -260,29 +293,46 @@ function update() {
             } else if (this.enemyPreview.x < 550) {
                 this.enemyPreview.setVelocityX(enemySpeed);
             }
+
+            // --- 🔴 敌人血条跟随移动 + 方块显示/隐藏更新 ---
+            const barCenterX = this.enemyPreview.x;
+            const barCenterY = this.enemyPreview.y - 70;  // 头顶上方
+            
+            // 计算起始位置（让血条居中）
+            const totalBarWidth = ENEMY_MAX_BLOCKS * ENEMY_BLOCK_SIZE;
+            const startX = barCenterX - totalBarWidth / 2;
+            
+            // 🔍 计算应该显示多少个小方块
+            const visibleBlocks = Math.max(0, Math.ceil(this.enemyPreview.hp / HP_PER_BLOCK));
+            
+            console.log(`[敌人血条更新] HP=${this.enemyPreview.hp}, 应显示 ${visibleBlocks} 个方块`);
+            
+            // 更新每个小方块的位置和可见性
+            for (let i = 0; i < ENEMY_MAX_BLOCKS; i++) {
+                if (this.enemyHealthBlocks[i]) {
+                    // 设置位置（横向排列）
+                    this.enemyHealthBlocks[i].setPosition(
+                        startX + i * ENEMY_BLOCK_SIZE,
+                        barCenterY
+                    );
+                    
+                    // 🔴 控制可见性：有血就显示，没血就隐藏
+                    const shouldBeVisible = (i < visibleBlocks);
+                    this.enemyHealthBlocks[i].setVisible(shouldBeVisible);
+                }
+            }
         }
 
-        // --- 玩家血条更新（方案 C：setScale() 方法，origin=0.5）---
-        const playerPct = Math.max(0, this.playerHP / PLAYER_MAX_HP);
-        if (this.playerBarFG) {
-            this.playerBarFG.setScale(playerPct);  // ← Phaser 官方推荐的方法
-        }
-
-        // --- 敌人血条跟随移动 + 宽度更新（方案 C：setScale()）---
-        if (this.enemyPreview && this.enemyPreview.active) {
-            const enemyBarX = this.enemyPreview.x - 30;
-            const enemyBarY = this.enemyPreview.y - 60;
-            
-            if (this.enemyBarBG) {
-                this.enemyBarBG.setPosition(enemyBarX, enemyBarY);
-            }
-            if (this.enemyBarFG) {
-                this.enemyBarFG.setPosition(enemyBarX, enemyBarY);
-            }
-            
-            const enemyPct = Math.max(0, this.enemyPreview.hp / ENEMY_MAX_HP);
-            if (this.enemyBarFG) {
-                this.enemyBarFG.setScale(enemyPct);  // ← Phaser 官方推荐的方法
+        // --- 🔴 玩家血条更新（方块消失效果）---
+        const playerVisibleBlocks = Math.max(0, Math.ceil(this.playerHP / HP_PER_BLOCK));  // 每块=5HP
+        
+        console.log(`[玩家血条更新] HP=${this.playerHP}, 应显示 ${playerVisibleBlocks} 个方块`);
+        
+        for (let i = 0; i < PLAYER_MAX_BLOCKS; i++) {
+            if (this.playerHealthBlocks[i]) {
+                // 🔴 控制可见性：有血就显示，没血就隐藏
+                const shouldBeVisible = (i < playerVisibleBlocks);
+                this.playerHealthBlocks[i].setVisible(shouldBeVisible);
             }
         }
 
@@ -298,9 +348,7 @@ function update() {
         
         this.debugText.setText(
             `HP: ${this.playerHP}/100 | Enemy: ${enemyStatus}/60\n`
-            + `位置：(${Math.round(this.player.x)}, ${Math.round(this.player.y)})\n`
-            + `速度 X: ${Math.round(this.player.body.velocity.x)}\n`
-            + `速度 Y: ${Math.round(this.player.body.velocity.y)}\n`  
+            + `位置：(${Math.round(this.player.x)}, ${Math.round(this.player.y)})\n`  
             + `在地面：${this.player.body.touching.down}`
         );
     } catch (e) {
