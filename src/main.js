@@ -166,13 +166,13 @@ function create() {
         }
     });
 
-    // --- 玩家血条 UI (左上角) ---
-    this.playerBarBG = this.add.rectangle(200, 35, 160, 20, 0x333333);
-    this.playerBarFG = this.add.rectangle(200, 35, 160, 20, 0x00ff00);
+    // --- 玩家血条 UI (左上角) — origin=0，左端固定！
+    this.playerBarBG = this.add.rectangle(200, 35, 160, 20, 0x333333).setOrigin(0);
+    this.playerBarFG = this.add.rectangle(200, 35, 160, 20, 0x00ff00).setOrigin(0);
 
-    // --- 敌人血条 UI (头顶) ---
-    this.enemyBarBG = this.add.rectangle(600, 180, 60, 8, 0x333333).setScrollFactor(0);
-    this.enemyBarFG = this.add.rectangle(600, 180, 60, 8, 0xff0000).setScrollFactor(0);
+    // --- 敌人血条 UI (头顶) — origin=0，左端固定！
+    this.enemyBarBG = this.add.rectangle(600, 180, 60, 8, 0x333333).setOrigin(0);
+    this.enemyBarFG = this.add.rectangle(600, 180, 60, 8, 0xff0000).setOrigin(0);
 
     // --- UI: 调试信息 ---
     this.debugText = this.add.text(20, 20, '', {
@@ -243,10 +243,37 @@ function update() {
             }
         }
 
-        // --- 实时更新血条宽度（只做宽度，不做位置移动）---
+        // --- 实时更新玩家血条宽度（Test #2 方案）---
         const playerPct = Math.max(0, this.playerHP / PLAYER_MAX_HP);
         if (this.playerBarFG) {
+            // Test #2: origin=0 + .width
             this.playerBarFG.width = 160 * playerPct;
+            
+            // 调试：每次碰撞后打印（不刷屏）
+            if (Math.random() < 0.05) {
+                console.log(`HP=${this.playerHP}, pct=${playerPct.toFixed(2)}, width=${this.playerBarFG.width}`);
+            }
+        }
+
+        // --- 敌人血条跟随移动 + 宽度更新 ---
+        if (this.enemyPreview && this.enemyPreview.active) {
+            // 计算敌人血条的位置（头顶上方，左对齐）
+            const enemyBarX = this.enemyPreview.x - 30;  // 中心向左偏移 30px（半个血条宽度）
+            const enemyBarY = this.enemyPreview.y - 60;  // 垂直在头顶
+            
+            // 更新位置（用 setPosition，安全！）
+            if (this.enemyBarBG) {
+                this.enemyBarBG.setPosition(enemyBarX, enemyBarY);
+            }
+            if (this.enemyBarFG) {
+                this.enemyBarFG.setPosition(enemyBarX, enemyBarY);
+            }
+            
+            // 更新敌人血条宽度
+            const enemyPct = Math.max(0, this.enemyPreview.hp / ENEMY_MAX_HP);
+            if (this.enemyBarFG) {
+                this.enemyBarFG.width = 60 * enemyPct;
+            }
         }
 
     } catch (e) {

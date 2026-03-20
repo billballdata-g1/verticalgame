@@ -5,7 +5,7 @@
 **项目**: `verticalgame` (GitHub)  
 **引擎**: Phaser 3.70 + Vite 5.0  
 **语言**: JavaScript/TypeScript  
-**状态**: Step 1 ✅ COMPLETED | Step 2a ⏳ PENDING
+**状态**: Step 1 ✅ | Step 2a ✅ | Step 2b-5 ⏳ (血条 bug)
 
 ---
 
@@ -91,7 +91,7 @@ s.git push
 
 ### **Step 1: 项目初始化 + 玩家移动 ✅ COMPLETED**
 
-**Commit ID**: `5f240ff` (Step 1) → `4023390` (Step 1b)
+**Commit ID**: `5f240ff` → `4023390`
 
 **实现的功能：**
 ```javascript
@@ -118,37 +118,70 @@ if (cursors.up.isDown && touching.down) player.setVelocityY(-500);
 
 ---
 
-### **Step 2a: 平台系统 ⏳ PENDING**
+### **Step 2a: 平台系统 ✅ COMPLETED**
 
-**待实现：**
+**Commit ID**: `b3e0bb6`
+
+**实现的功能：**
 ```javascript
-// TODO: 在空中搭建可站立的平台
 const platformsData = [
-    { x: 150, y: 400 },  // 第一个平台
-    { x: 350, y: 320 },  // 第二个（更高）
+    { x: 150, y: 480 },   // 最低的平台
+    { x: 350, y: 380 },   // 中等高度
+    { x: 200, y: 280 },   // 较高
+    { x: 450, y: 200 },   // 更高
+    { x: 650, y: 150 },   // 最高平台
 ];
-
-this.platforms = this.physics.add.staticGroup();
-platformsData.forEach(data => {
-    const platform = this.add.rectangle(data.x, data.y, 100, 20, 0x4a6b4a);
-    platforms.add(platform);
-});
-this.physics.add.collider(this.player, this.platforms);
 ```
 
 ---
 
-### **Step 2b: 敌人系统 ⏳ PENDING**
+### **Step 2b-1 ~ 2b-3: 敌人系统 ✅ COMPLETED**
 
-**待实现：**
-- 👾 简单巡逻的方块，碰到会死（Game Over）
+**Commit IDs**: `32f8acc` → `7b2cf77`
+
+**实现的功能：**
+- 🍪 饼干人纹理渲染（圆形身体 + 眼睛 + 嘴巴）
+- ⬇️ 受重力影响，站在平台/地面上
+- ↔️ 左右巡逻移动（550-650px 范围）
 
 ---
 
-### **Step 2c: 踩扁机制 ⏳ PENDING**
+### **Step 2b-4: Game Over 系统 ✅ COMPLETED**
 
-**待实现：**
-- ⬇️ 从上方落下时消灭敌人（马里奥经典！）+ 弹跳效果
+**Commit ID**: `7b2cf77`
+
+**实现的功能：**
+- 💀 玩家碰到敌人 → 显示红色 Game Over UI
+- ⌨️ 按 R 键重新开始游戏
+
+---
+
+### **Step 2b-5: 血量系统 + 血条 UI ⏳ IN PROGRESS (BUG)**
+
+**Commit ID**: `08bcd95`
+
+**已实现：**
+- ❤️ 玩家 HP=100，敌人 HP=60
+- ⚔️ overlap 双向掉血（200ms 冷却）
+- 📊 debugText 数字显示 HP
+
+**❌ 卡住的 Bug：血条宽度不变化！**
+```javascript
+// ❌ 问题代码：设置 .width 后血条看起来没变
+this.playerBarFG.width = 160 * playerPct;
+```
+
+**已尝试的修复方案：**
+1. ✅ `.setOrigin(0)` — 让左端固定（2026-03-20 16:42）
+2. ❌ `setPosition()` 替代直接改 `.x`/`.y` — 用于敌人血条跟随
+3. ❌ 强制刷新浏览器、重启 Vite
+
+**下一步排查：**
+- [ ] 检查 Phaser Rectangle 的锚点机制是否理解正确
+- [ ] 尝试用 `setScaleX()` 替代 `.width`
+- [ ] 查看 Phaser 官方文档或社区示例
+
+---
 
 ---
 
@@ -215,6 +248,32 @@ gh auth status
 
 ---
 
+## 🐛 **已知问题 (Known Issues)**
+
+### ❌ **Bug #1: 血条宽度不变化** 🔴 HIGH PRIORITY
+
+**症状**: HP 数字正常显示和变化，但血条宽度始终固定。
+
+**位置**: `src/main.js` Line ~205-230
+
+**已尝试方案**:
+1. `.setOrigin(0)` — Phaser Rectangle 锚点设置（无效）
+2. `setPosition()` — 敌人血条跟随移动（有效，但宽度不变化是另一问题）
+3. 强制刷新、重启 Vite（无效）
+
+**下一步**: 
+- 尝试用 `setScaleX()` 替代 `.width`
+- 查看 Phaser 官方文档关于 Rectangle 的锚点机制
+- 搜索 StackOverflow "Phaser health bar width not changing"
+
+---
+
+### ⚠️ **Bug #2: R 键不重置敌人** 🟡 MEDIUM
+
+R 键只重置玩家位置和血量，敌人不会重新生成。
+
+---
+
 ## 🔗 **外部链接**
 
 - **GitHub**: https://github.com/billballdata-g1/verticalgame
@@ -227,9 +286,16 @@ gh auth status
 
 | 日期 | 更新内容 | Commit ID |
 |------|----------|-----------|
-| 2026-03-20 | Step 1: Phaser 初始化 + 玩家移动 | `5f240ff` |
+| 2026-03-20 | Step 2b-5: Add bidirectional HP system + debug UI | `08bcd95` |
+| 2026-03-20 | Step 2b-3: Add enemy patrol movement | `7b2cf77` |
+| 2026-03-20 | Step 2b-2: Put cookie enemy into physics world | `87d38c7` |
+| 2026-03-20 | Step 2b-1: Add cookie enemy texture rendering | `32f8acc` |
+| 2026-03-20 | Step 2a: Add platform system with 5 platforms | `b3e0bb6` |
+| 2026-03-20 | docs: 创建测试与 Debug 指引 | `b938735` |
+| 2026-03-20 | docs: 创建开发手册 README.md | `9aac7ef` |
 | 2026-03-20 | Step 1b: 保存完整开发大纲 v1.0 | `4023390` |
+| 2026-03-20 | Step 1: Phaser 初始化 + 玩家移动 | `5f240ff` |
 
 ---
 
-*最后更新：2026-03-20 12:54 GMT+8*
+*最后更新：2026-03-20 17:00 GMT+8*

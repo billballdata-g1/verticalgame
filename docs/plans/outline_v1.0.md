@@ -209,10 +209,47 @@ s.git revert    # 撤销最近一次提交
 | Step | 状态 | Commit ID |
 |------|------|-----------|
 | Step 1: 项目初始化 + 玩家移动 | ✅ COMPLETED | `5f240ff` |
-| Step 2a: 平台系统 | ⏳ PENDING | - |
-| Step 2b: 敌人系统 | ⏳ PENDING | - |
-| Step 2c: 踩扁机制 | ⏳ PENDING | - |
+| Step 2a: 平台系统 | ✅ COMPLETED | `b3e0bb6` |
+| Step 2b-1 ~ 2b-3: 敌人渲染/巡逻 | ✅ COMPLETED | `7b2cf77` |
+| Step 2b-4: Game Over 系统 | ✅ COMPLETED | `7b2cf77` |
+| **Step 2b-5: 血量系统 + 血条 UI** | ⏳ **IN PROGRESS (BUG)** | `08bcd95` |
 
 ---
 
 *大纲版本：v1.0 — 创建时间：2026-03-20*
+
+---
+
+## 🚨 **当前卡住的问题 (2026-03-20)**
+
+### ❌ **血条宽度不变化 Bug** 🔴 HIGH PRIORITY
+
+**症状**: 
+- HP 数字正常显示和更新 (`HP: X/100 | Enemy: Y/60`)
+- 玩家血条（绿色）始终满的，不随 HP 缩短
+- 敌人血条（红色）位置跟随正确，但宽度也不变化
+
+**已尝试方案 (全部无效)**:
+1. ✅ `.setOrigin(0)` — 让 Rectangle 左端固定
+2. ❌ `setPosition()` — 用于敌人血条跟随移动（这个有效）
+3. ❌ 强制刷新浏览器、重启 Vite
+4. ❌ 添加 console.log 调试输出
+
+**代码位置**: `src/main.js` Line ~195-230
+
+```javascript
+// create() — 创建血条时设置 origin=0
+this.playerBarFG = this.add.rectangle(200, 35, 160, 20, 0x00ff00).setOrigin(0);
+
+// update() — 每帧更新宽度
+const playerPct = Math.max(0, this.playerHP / PLAYER_MAX_HP);
+if (this.playerBarFG) {
+    this.playerBarFG.width = 160 * playerPct;
+}
+```
+
+**下一步排查方向**:
+- [ ] 尝试用 `setScaleX()` 替代 `.width`（Phaser 可能优化了 width 属性）
+- [ ] 查看 Phaser Rectangle 的官方文档，确认 anchor/origin 机制
+- [ ] StackOverflow: "Phaser health bar width not changing"
+- [ ] 创建一个最小的测试用例验证问题

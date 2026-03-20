@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>血条测试 - Phaser 3</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: #1a1a1a;
+            font-family: Arial, sans-serif;
+            color: white;
+        }
+        h1 { color: #87CEEB; }
+        .test-area {
+            border: 2px solid #333;
+            margin: 20px 0;
+            padding: 20px;
+            background-color: #000;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 5px;
+            background-color: #4a6b4a;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+        button:hover { background-color: #6b8c4a; }
+        .log {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #2d2d2d;
+            font-family: monospace;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+
+<h1>🎮 Phaser 3 血条测试</h1>
+<p>这个页面只测试血条宽度变化，排除其他游戏逻辑干扰。</p>
+
+<!-- 测试区域 1: origin=0.5 (默认) -->
+<div class="test-area">
+    <h2>Test #1: origin = 0.5 (Phaser 默认值)</h2>
+    <div id="canvas-test-1"></div>
+</div>
+
+<!-- 测试区域 2: origin=0 (左端固定) -->
+<div class="test-area">
+    <h2>Test #2: origin = 0 (左端固定)</h2>
+    <div id="canvas-test-2"></div>
+</div>
+
+<!-- 测试区域 3: 使用 setScaleX() -->
+<div class="test-area">
+    <h2>Test #3: 用 scale 控制宽度（不直接改 width）</h2>
+    <div id="canvas-test-3"></div>
+</div>
+
+<!-- 控制按钮 -->
+<div style="margin: 20px 0;">
+    <button onclick="updateAllHealthBars(1.0)">HP = 100%</button>
+    <button onclick="updateAllHealthBars(0.75)">HP = 75%</button>
+    <button onclick="updateAllHealthBars(0.5)">HP = 50%</button>
+    <button onclick="updateAllHealthBars(0.25)">HP = 25%</button>
+    <button onclick="updateAllHealthBars(0.0)">HP = 0%</button>
+</div>
+
+<!-- 日志输出 -->
+<div class="log" id="console-log">
+    <strong>Console Log:</strong><br>
+等待操作...
+</div>
+
+<!-- 引入 Phaser -->
+<script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script>
+
+<script>
+let game1, game2, game3;
+let healthBar1, healthBar2, healthBar3;
+
+// ==================== Test #1: origin = 0.5 (默认) ====================
+const config1 = {
+    type: Phaser.AUTO,
+    width: 400,
+    height: 150,
+    parent: 'canvas-test-1',
+    backgroundColor: '#87CEEB',
+    scene: {
+        create() {
+            // 创建背景条
+            this.add.rectangle(200, 75, 300, 40, 0x333333);
+            
+            // 创建血条（origin=0.5，默认居中）
+            healthBar1 = this.add.rectangle(200, 75, 300, 40, 0x00ff00);
+            
+            // 添加文字说明
+            this.add.text(20, 10, 'origin = 0.5 (默认)', { fontSize: '16px', fill: '#fff' });
+        }
+    }
+};
+game1 = new Phaser.Game(config1);
+log('Test #1 初始化：origin=0.5');
+
+// ==================== Test #2: origin = 0 (左端固定) ====================
+const config2 = {
+    type: Phaser.AUTO,
+    width: 400,
+    height: 150,
+    parent: 'canvas-test-2',
+    backgroundColor: '#87CEEB',
+    scene: {
+        create() {
+            // 创建背景条 — 也设置 origin=0！
+            this.add.rectangle(50, 75, 300, 40, 0x333333).setOrigin(0);
+            
+            // 创建血条（origin=0，左端固定）
+            healthBar2 = this.add.rectangle(50, 75, 300, 40, 0x00ff00).setOrigin(0);
+            
+            // 添加文字说明
+            this.add.text(20, 10, 'origin = 0 (左端固定)', { fontSize: '16px', fill: '#fff' });
+        }
+    }
+};
+game2 = new Phaser.Game(config2);
+log('Test #2 初始化：origin=0');
+
+// ==================== Test #3: scale 控制 ====================
+const config3 = {
+    type: Phaser.AUTO,
+    width: 400,
+    height: 150,
+    parent: 'canvas-test-3',
+    backgroundColor: '#87CEEB',
+    scene: {
+        create() {
+            // 创建背景条 — origin=0
+            this.add.rectangle(50, 75, 300, 40, 0x333333).setOrigin(0);
+            
+            // 创建血条（origin=0，用 scale.x 控制宽度）
+            healthBar3 = this.add.rectangle(50, 75, 300, 40, 0x00ff00).setOrigin(0);
+            // x=185 = 50 + 300/2，让血条中心对齐
+            
+            // 添加文字说明
+            this.add.text(20, 10, '用 scale.x 控制宽度', { fontSize: '16px', fill: '#fff' });
+        }
+    }
+};
+game3 = new Phaser.Game(config3);
+log('Test #3 初始化：scale control');
+
+// ==================== 更新所有血条 ====================
+function updateAllHealthBars(percent) {
+    percent = Math.max(0, Math.min(1, percent)); // 限制在 0~1 之间
+    
+    log(`\n--- 更新到 ${Math.round(percent * 100)}% ---`);
+    
+    // Test #1: origin=0.5，直接设置 width
+    if (healthBar1) {
+        healthBar1.width = 300 * percent;
+        log(`Test #1: .width = ${healthBar1.width} (origin=0.5)`);
+    }
+    
+    // Test #2: origin=0，直接设置 width
+    if (healthBar2) {
+        healthBar2.width = 300 * percent;
+        log(`Test #2: .width = ${healthBar2.width} (origin=0)`);
+    }
+    
+    // Test #3: origin=0，用 scale.x 控制
+    if (healthBar3) {
+        healthBar3.scale.x = percent;
+        log(`Test #3: .scale.x = ${healthBar3.scale.x}`);
+    }
+}
+
+// ==================== 日志工具 ====================
+function log(message) {
+    const logDiv = document.getElementById('console-log');
+    const timestamp = new Date().toLocaleTimeString();
+    logDiv.innerHTML += `[${timestamp}] ${message}<br>`;
+    logDiv.scrollTop = logDiv.scrollHeight; // 滚动到底部
+}
+
+// ==================== 自动测试 ====================
+setTimeout(() => {
+    log('\n🔄 开始自动演示...');
+    updateAllHealthBars(1.0);
+    setTimeout(() => updateAllHealthBars(0.75), 500);
+    setTimeout(() => updateAllHealthBars(0.5), 1000);
+    setTimeout(() => updateAllHealthBars(0.25), 1500);
+    setTimeout(() => updateAllHealthBars(0.0), 2000);
+}, 1000);
+
+</script>
+
+</body>
+</html>
