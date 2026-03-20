@@ -138,6 +138,12 @@ function create() {
     
     this.enemyPreview.hp = 60;
 
+    // --- 🔴 敌人死亡时清除血条的方法 ---
+    const hideEnemyHealthBar = () => {
+        console.log('🗑️ [清理] 隐藏所有敌人血条方块');
+        this.enemyHealthBlocks.forEach(block => block.setVisible(false));
+    };
+
     // --- 玩家碰到敌人 → 双向掉血 (改用 overlap，每帧触发) ---
     const playerDamage = 20;
     const enemyDamage = 15; // 每个方块代表 5HP，所以 3 个方块=15HP
@@ -162,10 +168,11 @@ function create() {
             const direction = player.x < enemy.x ? -1 : 1;
             player.setVelocity(direction * 150, -200);
             
-            // 检查敌人死亡
+            // 🔴 检查敌人死亡 — 同时清除血条！
             if (enemy.hp <= 0) {
                 console.log('💥 饼干人被击败了！');
-                enemy.destroy();  // 删除敌人
+                enemy.destroy();          // 删除敌人
+                hideEnemyHealthBar();     // 🔴 隐藏所有血条方块
             }
         }
         
