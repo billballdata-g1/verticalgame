@@ -262,14 +262,13 @@ function update() {
             }
         }
 
-        // --- 玩家血条更新（正确方案：setSize + updateData）---
+        // --- 玩家血条更新（方案 C：setScale() 方法，origin=0.5）---
         const playerPct = Math.max(0, this.playerHP / PLAYER_MAX_HP);
         if (this.playerBarFG) {
-            const newWidth = 160 * playerPct;  // 原始宽度是 160
-            this.playerBarFG.geom.setSize(newWidth, 20);  // ← 改几何尺寸
-            this.playerBarFG.setSize(newWidth, 20).updateDisplayOrigin().updateData();  // ← 更新显示
+            this.playerBarFG.setScale(playerPct);  // ← Phaser 官方推荐的方法
+        }
 
-        // --- 敌人血条跟随移动 + 宽度更新 ---
+        // --- 敌人血条跟随移动 + 宽度更新（方案 C：setScale()）---
         if (this.enemyPreview && this.enemyPreview.active) {
             const enemyBarX = this.enemyPreview.x - 30;
             const enemyBarY = this.enemyPreview.y - 60;
@@ -283,9 +282,8 @@ function update() {
             
             const enemyPct = Math.max(0, this.enemyPreview.hp / ENEMY_MAX_HP);
             if (this.enemyBarFG) {
-                const newWidth = 60 * enemyPct;  // 原始宽度是 60
-                this.enemyBarFG.geom.setSize(newWidth, 8);  // ← 改几何尺寸
-                this.enemyBarFG.setSize(newWidth, 8).updateDisplayOrigin().updateData();
+                this.enemyBarFG.setScale(enemyPct);  // ← Phaser 官方推荐的方法
+            }
         }
 
     } catch (e) {
