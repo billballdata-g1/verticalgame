@@ -15,6 +15,10 @@ const PLAYER_BAR_Y = 10;
 const ENEMY_BLOCK_SIZE = 8;
 const ENEMY_MAX_BLOCKS = 12;       // 60HP / 5 = 12 blocks
 
+// 💨 二段跳相关常量
+const DEFAULT_MAX_JUMPS = 1;       // 默认只能跳一次
+const DOUBLE_JUMP_VALUE = 2;       // 鞋子道具给的跳跃次数
+
 // ============ 游戏配置 ============
 const config = {
     type: Phaser.AUTO,
@@ -79,6 +83,34 @@ function create() {
         platforms.add(platformSprite);
     });
 
+    // --- 💨 Step 2d: 鞋子道具（二段跳）---
+    const shoeGraphics = this.make.graphics({ x: 0, y: 0 });
+    
+    // 绘制鞋子纹理
+    shoeGraphics.fillStyle(0xffd700);       // 金黄色鞋身
+    shoeGraphics.fillRoundedRect(2, 18, 46, 20, 5);  // 鞋底
+    shoeGraphics.fillStyle(0xffffff);        // 白色鞋面
+    shoeGraphics.fillCircle(30, 15, 12);     // 鞋头圆顶
+    shoeGraphics.fillRect(18, 5, 14, 15);   // 鞋筒
+    shoeGraphics.fillStyle(0xff6b6b);        // 红色鞋带孔
+    shoeGraphics.fillCircle(24, 10, 2);
+    shoeGraphics.fillCircle(28, 10, 2);
+    shoeGraphics.fillStyle(0xffff00);        // 黄色闪电标志（表示速度）
+    shoeGraphics.fillRect(35, 12, 8, 4);
+    
+    const shoeTexture = shoeGraphics.generateTexture('shoeItem', 50, 40);
+    
+    // 💨 鞋子道具 — 放在平台上（玩家收集后获得二段跳）
+    this.shoeItem = this.physics.add.sprite(500, 360, 'shoeItem');
+    this.shoeItem.setBounce(0);              // 不弹跳
+    this.shoeItem.setCollideWorldBounds(true);
+    this.shoeItem.body.setSize(40, 32);      // 稍微小一点的碰撞箱
+    
+    // 💨 二段跳状态变量
+    this.maxJumps = DEFAULT_MAX_JUMPS;       // 当前最大跳跃次数（默认 1）
+    this.jumpsUsed = 0;                      // 当前已经用了多少次跳跃
+    this.lastJumpFrame = -1;                 // 🔍 记录上次跳跃的帧数（防止连发）
+
     // --- 敌人系统 (Step 2b) ---
     const enemyGraphics = this.make.graphics({ x: 0, y: 0 });
     
@@ -127,6 +159,23 @@ function create() {
     // --- 碰撞检测：玩家碰到地面和平台 ---
     this.physics.add.collider(this.player, ground);
     this.physics.add.collider(this.player, platforms);
+
+    // --- 💨 Step 2d: 鞋子道具收集（overlap）---
+    this.physics.add.overlap(this.player, this.shoeItem, (player, shoe) => {
+        if (!shoe.active) return;  // 已经被捡走了，跳过
+        
+        console.log('👟 COLLECTED! Double jump unlocked!');
+        
+        // 💨 获得二段跳能力
+        this.maxJumps = DOUBLE_JUMP_VALUE;
+        
+        // 🗑️ 鞋子消失
+        shoe.destroy();
+    });
+
+    // --- 🐛 FIX: 鞋子和地面/平台碰撞（不会掉到地下）---
+    this.physics.add.collider(this.shoeItem, ground);
+    this.physics.add.collider(this.shoeItem, platforms);
 
     // --- 敌人也要和平台/地面碰撞（不会掉下去）---
     this.physics.add.collider(this.enemyPreview, ground);
@@ -274,6 +323,10 @@ function create() {
         this.playerHP = PLAYER_MAX_HP;
         this.enemyPreview.hp = ENEMY_MAX_HP;
         
+        // 💨 重置二段跳状态
+        this.jumpsUsed = 0;
+        this.lastJumpFrame = -1;
+        
         // 重置敌人位置
         this.enemyPreview.setPosition(600, 200);
         this.enemyPreview.setActive(true);
@@ -310,10 +363,33 @@ function update() {
             this.player.setVelocityX(0);
         }
 
-        // --- 跳跃 ---
-        if (this.cursors.up.isDown || this.cursors.space.isDown) {
-            if (this.player.body.touching.down) {
+        // --- 💨 跳跃（支持二段跳）---
+        
+        // 🔄 每帧检查落地 → 立即重置跳跃次数
+        if (this.player.body.touching.down && this.jumpsUsed > 0) {
+            console.log('👟 Landed! Reset jumpsUsed to 0');
+            this.jumpsUsed = 0;
+        }
+        
+        // 🔍 检查是否按下跳跃键
+        const jumpKeyPressed = (this.cursors.up.isDown || this.cursors.space.isDown);
+        
+        if (jumpKeyPressed) {
+            // ✅ 第一次跳跃：必须在地面上，且本帧没有跳过
+            if (this.player.body.touching.down && this.lastJumpFrame !== this.game.loop.frame) {
                 this.player.setVelocityY(-500);
+                this.jumpsUsed = 1;  // ⭐ 用了第 1 次跳跃
+                this.lastJumpFrame = this.game.loop.frame;
+                console.log('🦯 Jump #1! jumpsUsed=', this.jumpsUsed);
+            }
+            // 💨 第二次跳跃：在空中，且还有剩余跳跃次数
+            else if (!this.player.body.touching.down && 
+                     this.jumpsUsed < this.maxJumps && 
+                     this.lastJumpFrame !== this.game.loop.frame) {
+                this.player.setVelocityY(-500);
+                this.jumpsUsed = 2;  // ⭐ 用了第 2 次跳跃
+                this.lastJumpFrame = this.game.loop.frame;
+                console.log('💨 DOUBLE JUMP! jumpsUsed=', this.jumpsUsed, '/ max=', this.maxJumps);
             }
         }
 
@@ -379,7 +455,7 @@ function update() {
         this.debugText.setText(
             `HP: ${this.playerHP}/100 | Enemy: ${enemyStatus}/60\n`
             + `位置：(${Math.round(this.player.x)}, ${Math.round(this.player.y)})\n`  
-            + `在地面：${this.player.body.touching.down}`
+            + `在地面：${this.player.body.touching.down} | 💨 Jumps: ${this.jumpsUsed}/${this.maxJumps}`
         );
     } catch (e) {
         // 忽略调试信息错误，不影响游戏
