@@ -5,7 +5,7 @@
 **项目**: `verticalgame` (GitHub)  
 **引擎**: Phaser 3.70 + Vite 5.0  
 **语言**: JavaScript/TypeScript  
-**状态**: Step 1 ✅ | Step 2a ✅ | Step 2b-5 ⏳ (血条 bug)
+**状态**: Step 1 ✅ | Step 2a ✅ | Step 2b-5 ✅
 
 ---
 
@@ -156,30 +156,29 @@ const platformsData = [
 
 ---
 
-### **Step 2b-5: 血量系统 + 血条 UI ⏳ IN PROGRESS (BUG)**
+### **Step 2b-5: 血量系统 + 血条 UI ✅ COMPLETED**
 
-**Commit ID**: `08bcd95`
+**Commit ID**: `_（待提交）_`  
+**修复日期**: 2026-03-21 12:04
 
-**已实现：**
-- ❤️ 玩家 HP=100，敌人 HP=60
-- ⚔️ overlap 双向掉血（200ms 冷却）
-- 📊 debugText 数字显示 HP
-
-**❌ 卡住的 Bug：血条宽度不变化！**
+**实现方案：小方块拼接法** 💡
 ```javascript
-// ❌ 问题代码：设置 .width 后血条看起来没变
-this.playerBarFG.width = 160 * playerPct;
+// 玩家血条：20 个小方块 × 5HP = 100HP（左上角固定）
+for (let i = 0; i < PLAYER_MAX_BLOCKS; i++) {
+    this.playerHealthBlocks[i].setVisible(i < playerVisibleBlocks);
+}
+
+// 敌人血条：12 个小方块 × 5HP = 60HP（头顶跟随移动）
+this.enemyHealthBlocks[i].setPosition(startX + i * ENEMY_BLOCK_SIZE, barCenterY);
 ```
 
-**已尝试的修复方案：**
-1. ✅ `.setOrigin(0)` — 让左端固定（2026-03-20 16:42）
-2. ❌ `setPosition()` 替代直接改 `.x`/`.y` — 用于敌人血条跟随
-3. ❌ 强制刷新浏览器、重启 Vite
+**核心思想：**
+- ❌ ~~原方案：修改 Rectangle 的 `.width` → Bug 难排查~~
+- ✅ **新方案：每个小方块代表 5HP，掉血时右侧方块逐个消失**
 
-**下一步排查：**
-- [ ] 检查 Phaser Rectangle 的锚点机制是否理解正确
-- [ ] 尝试用 `setScaleX()` 替代 `.width`
-- [ ] 查看 Phaser 官方文档或社区示例
+**视觉效果：**
+- ❤️ 玩家血条 — 左上角固定位置，绿色小方块横向排列
+- 🍪 敌人血条 — 头顶上方跟随移动，红色小方块横向排列
 
 ---
 
@@ -250,21 +249,20 @@ gh auth status
 
 ## 🐛 **已知问题 (Known Issues)**
 
-### ❌ **Bug #1: 血条宽度不变化** 🔴 HIGH PRIORITY
+### ✅ **Bug #1: 血条宽度不变化 — FIXED**  
+**修复日期**: 2026-03-21 12:04
 
-**症状**: HP 数字正常显示和变化，但血条宽度始终固定。
+**原症状**: HP 数字正常显示和变化，但血条宽度始终固定。
 
-**位置**: `src/main.js` Line ~205-230
+**失败方案：**
+1. ❌ `.setOrigin(0)` — Phaser Rectangle 锚点设置
+2. ❌ `setPosition()` — 敌人血条跟随移动
+3. ❌ 强制刷新、重启 Vite
+4. ❌ `setScaleX()` 替代 `.width`
 
-**已尝试方案**:
-1. `.setOrigin(0)` — Phaser Rectangle 锚点设置（无效）
-2. `setPosition()` — 敌人血条跟随移动（有效，但宽度不变化是另一问题）
-3. 强制刷新、重启 Vite（无效）
-
-**下一步**: 
-- 尝试用 `setScaleX()` 替代 `.width`
-- 查看 Phaser 官方文档关于 Rectangle 的锚点机制
-- 搜索 StackOverflow "Phaser health bar width not changing"
+**✅ 最终解决方案：小方块拼接法**
+- 每块代表 5HP，掉血时右侧方块逐个消失
+- 本质思考："血条"的核心是可视化血量变化 — **如何实现不重要，效果对就行**
 
 ---
 
@@ -286,6 +284,7 @@ R 键只重置玩家位置和血量，敌人不会重新生成。
 
 | 日期 | 更新内容 | Commit ID |
 |------|----------|-----------|
+| 2026-03-21 | Step 2b-5: FIX health bar with block-based approach | `_（待提交）_` |
 | 2026-03-20 | Step 2b-5: Add bidirectional HP system + debug UI | `08bcd95` |
 | 2026-03-20 | Step 2b-3: Add enemy patrol movement | `7b2cf77` |
 | 2026-03-20 | Step 2b-2: Put cookie enemy into physics world | `87d38c7` |

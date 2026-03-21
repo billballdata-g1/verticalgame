@@ -144,12 +144,36 @@ function create() {
         this.enemyHealthBlocks.forEach(block => block.setVisible(false));
     };
 
-    // --- 玩家碰到敌人 → 双向掉血 (改用 overlap，每帧触发) ---
-    const playerDamage = 20;
-    const enemyDamage = 15; // 每个方块代表 5HP，所以 3 个方块=15HP
+    // --- 💥 Step 2c-1: 踩扁机制 + 双向掉血 (改用 overlap，每帧触发) ---
+    const playerDamage = 20;      // 玩家每次受伤 -20HP（4 个小块）
+    const enemyDamage = 15;       // 敌人每次受伤 -15HP（3 个小块）
+    const stompDamage = 60;       // 💥 踩扁伤害 — 直接秒杀！
 
     this.physics.add.overlap(this.player, this.enemyPreview, (player, enemy) => {
         const now = Date.now();
+        
+        // 💥 Step 2c-1: 踩扁机制 — 从上方落下时
+        if (player.body.touching.down && player.body.velocity.y > 0) {
+            console.log('💥 STEP ON ENEMY! Player touching.down + velocity.y>', player.body.velocity.y);
+            
+            // ⬆️ 玩家弹跳（向上速度）
+            player.setVelocityY(-200);
+            
+            // 💀 敌人受到踩扁伤害（直接秒杀）
+            enemy.hp -= stompDamage;
+            console.log(`🍪 Stomped! Enemy HP: ${enemy.hp}`);
+            
+            if (enemy.hp <= 0) {
+                console.log('💀 Enemy crushed by stomp!');
+                enemy.destroy();
+                hideEnemyHealthBar();
+            }
+            
+            return; // ⭐ 踩扁时跳过普通碰撞的伤害逻辑
+        }
+        
+        // ❌ 侧面/下方接触 → 双向掉血（保持现有逻辑）
+        console.log('⚠️ Normal contact — both take damage');
         
         // 玩家掉血（独立冷却）- 每次掉 20HP（4 个小块）
         if (!this.playerLastHitTime || now - this.playerLastHitTime > 200) {
@@ -275,6 +299,8 @@ function update() {
     try {
         const speed = 250;
         
+
+        
         // --- 左右移动 ---
         if (this.cursors.left.isDown) {
             this.player.setVelocityX(-speed);
@@ -333,11 +359,8 @@ function update() {
         // --- 🔴 玩家血条更新（方块消失效果）---
         const playerVisibleBlocks = Math.max(0, Math.ceil(this.playerHP / HP_PER_BLOCK));  // 每块=5HP
         
-        console.log(`[玩家血条更新] HP=${this.playerHP}, 应显示 ${playerVisibleBlocks} 个方块`);
-        
         for (let i = 0; i < PLAYER_MAX_BLOCKS; i++) {
             if (this.playerHealthBlocks[i]) {
-                // 🔴 控制可见性：有血就显示，没血就隐藏
                 const shouldBeVisible = (i < playerVisibleBlocks);
                 this.playerHealthBlocks[i].setVisible(shouldBeVisible);
             }
