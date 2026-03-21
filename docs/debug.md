@@ -134,6 +134,56 @@ this.input.keyboard.on('keydown-UP', () => {
 
 ---
 
+## 💨 **二段跳 Bug：穿鞋后一跳直接变 2/2** (2026-03-21)
+
+### ❌ **Bug #3: `isDown` 按键检测导致连续触发**
+
+**症状**: 穿鞋后第一次按跳跃键，`jumpsUsed` 直接从 0 跳到 2（没二段跳效果）。
+
+**错误代码：**
+```javascript
+// ❌ isDown 在按住期间每一帧都是 true → 连续触发！
+if (this.cursors.up.isDown || this.cursors.space.isDown) {
+    if (touching.down) {
+        jumpsUsed = 1;
+    } else if (jumpsUsed < maxJumps) {
+        jumpsUsed = 2;  // ⚠️ 可能立即触发！
+    }
+}
+```
+
+**原因分析：**
+- `cursors.up.isDown` 在按键期间每一帧都返回 `true`
+- 加上复杂的去重逻辑（`lastJumpFrame`）容易出 bug
+- **物理引擎状态变化可能导致判断条件在同一帧内满足两次**
+
+**修复方案：用键盘事件代替每帧检测！**
+```javascript
+// ✅ keydown 只在"按下的那一瞬间"触发一次，天然去重！
+this.input.keyboard.on('keydown-UP', () => {
+    if (touching.down) {
+        this.player.setVelocityY(-500);
+        jumpsUsed = 1;  // 🦯 第一次跳跃
+    } else if (jumpsUsed < maxJumps) {
+        this.player.setVelocityY(-500);
+        jumpsUsed = 2;  // 💨 二段跳！
+    }
+});
+```
+
+**验证**: 
+- 穿鞋后 `maxJumps = 2`
+- ⬆️ UP → `🦯 Jump #1!`, `jumpsUsed = 1/2` ✅
+- ⬆️⬆️ 在空中再按 UP → `💨 DOUBLE JUMP!`, `jumpsUsed = 2/2` ✅
+
+**调试经验：**
+> **游戏控制优先用键盘事件，而不是每帧检测！**
+> - `keydown`/`keyup` 只在按键瞬间触发一次
+> - `isDown` 在按住期间每一帧都是 true → 需要额外的去重逻辑
+> - 简单问题复杂化往往是 bug 的根源
+
+---
+
 ## 📊 **经验总结**
 
 | 问题 | 症状 | 检测方法 |
