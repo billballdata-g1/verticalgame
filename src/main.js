@@ -109,7 +109,7 @@ function create() {
     // 💨 二段跳状态变量
     this.maxJumps = DEFAULT_MAX_JUMPS;       // 当前最大跳跃次数（默认 1）
     this.jumpsUsed = 0;                      // 当前已经用了多少次跳跃
-    this.lastJumpFrame = -1;                 // 🔍 记录上次跳跃的帧数（防止连发）
+    this.lastJumpFrame = -999;               // 🔍 记录上次跳跃的帧数（防止连发），初始为负数确保第一帧能跳
 
     // --- 敌人系统 (Step 2b) ---
     const enemyGraphics = this.make.graphics({ x: 0, y: 0 });
@@ -171,6 +171,46 @@ function create() {
         
         // 🗑️ 鞋子消失
         shoe.destroy();
+    });
+
+    // --- 💨 Step 2d: 跳跃键抬起事件（更可靠的二段跳触发）---
+    this.input.keyboard.on('keydown-UP', () => {
+        if (this.playerHP <= 0) return; // Game Over 时不响应
+        
+        console.log('⬆️ UP pressed! touching.down:', this.player.body.touching.down, 'jumpsUsed:', this.jumpsUsed);
+        
+        // ✅ 第一次跳跃：在地面上
+        if (this.player.body.touching.down) {
+            this.player.setVelocityY(-500);
+            this.jumpsUsed = 1;
+            console.log('🦯 Jump #1!');
+        }
+        // 💨 第二次跳跃：在空中，且还有剩余次数
+        else if (this.jumpsUsed < this.maxJumps) {
+            this.player.setVelocityY(-500);
+            this.jumpsUsed = 2;
+            console.log('💨 DOUBLE JUMP! jumpsUsed:', this.jumpsUsed, '/', this.maxJumps);
+        }
+    });
+    
+    // 🔁 空格键也支持二段跳
+    this.input.keyboard.on('keydown-SPACE', (event) => {
+        if (this.playerHP <= 0) return;
+        
+        console.log('␣ SPACE pressed! touching.down:', this.player.body.touching.down, 'jumpsUsed:', this.jumpsUsed);
+        
+        // ✅ 第一次跳跃
+        if (this.player.body.touching.down) {
+            this.player.setVelocityY(-500);
+            this.jumpsUsed = 1;
+            console.log('🦯 Jump #1!');
+        }
+        // 💨 第二次跳跃
+        else if (this.jumpsUsed < this.maxJumps) {
+            this.player.setVelocityY(-500);
+            this.jumpsUsed = 2;
+            console.log('💨 DOUBLE JUMP! jumpsUsed:', this.jumpsUsed, '/', this.maxJumps);
+        }
     });
 
     // --- 🐛 FIX: 鞋子和地面/平台碰撞（不会掉到地下）---
@@ -371,27 +411,8 @@ function update() {
             this.jumpsUsed = 0;
         }
         
-        // 🔍 检查是否按下跳跃键
-        const jumpKeyPressed = (this.cursors.up.isDown || this.cursors.space.isDown);
-        
-        if (jumpKeyPressed) {
-            // ✅ 第一次跳跃：必须在地面上，且本帧没有跳过
-            if (this.player.body.touching.down && this.lastJumpFrame !== this.game.loop.frame) {
-                this.player.setVelocityY(-500);
-                this.jumpsUsed = 1;  // ⭐ 用了第 1 次跳跃
-                this.lastJumpFrame = this.game.loop.frame;
-                console.log('🦯 Jump #1! jumpsUsed=', this.jumpsUsed);
-            }
-            // 💨 第二次跳跃：在空中，且还有剩余跳跃次数
-            else if (!this.player.body.touching.down && 
-                     this.jumpsUsed < this.maxJumps && 
-                     this.lastJumpFrame !== this.game.loop.frame) {
-                this.player.setVelocityY(-500);
-                this.jumpsUsed = 2;  // ⭐ 用了第 2 次跳跃
-                this.lastJumpFrame = this.game.loop.frame;
-                console.log('💨 DOUBLE JUMP! jumpsUsed=', this.jumpsUsed, '/ max=', this.maxJumps);
-            }
-        }
+        // ⌨️ 跳跃键检测已移到 create() 中的 keydown 事件
+        // 这里只需要重置逻辑即可
 
         // --- 敌人巡逻逻辑 ---
         const enemySpeed = 80;
