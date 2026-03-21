@@ -11,7 +11,8 @@ export const config = {
     size: 40,
     maxHealthBlocks: 10,      // 50 / 5 = 10 blocks
     healthBlockSize: 8,
-    playerDamage: 25,         // 🔴 子弹伤害（远程！）
+    contactDamage: 25,        // ⚠️ 碰到炮台受到的伤害（非子弹）
+    bulletDamage: 25,         // 🔴 子弹伤害（远程！）
     receivedDamage: 15,
     
     textureName: 'shooterEnemy',
@@ -55,8 +56,11 @@ export function create(scene) {
         config.textureName
     );
     
-    // ⚠️ 关键：设置为静态物体，不受重力影响，不会移动
-    shooter.setStatic();
+    // ⚠️ FIX: 不要使用 setStatic()，用 enableBody(false) 代替
+    // setStatic() 会完全禁用物理体，导致 overlap 检测失效！
+    shooter.body.enable = true;           // ✅ 保持物理体启用
+    shooter.setImmovable(true);           // ✅ 不可移动（类似 static）
+    shooter.body.allowGravity = false;    // ✅ 不受重力影响
     shooter.body.setSize(config.size, config.size);
     
     // 初始化 HP
@@ -91,10 +95,19 @@ export function createHealthBar(scene) {
     return healthBlocks;
 }
 
+// ========== Cleanup: 敌人死亡时清理资源 ==========
+export function cleanup(scene, healthBlocks) {
+    console.log('🗑️ [Shooter] Cleanup — hide health bar');
+    if (healthBlocks && Array.isArray(healthBlocks)) {
+        healthBlocks.forEach(block => {
+            if (block) block.setVisible(false);
+        });
+    }
+}
+
 // ========== 设置碰撞检测 ==========
-export function setupColliders(scene, shooter, ground, platforms, player) {
-    // ⚠️ Shooter 是静态物体，不需要 collider！
-    // 它不会移动，也不需要和地面/平台碰撞
+export function setupColliders(scene, shooter, ground, platforms, player, healthBlocks) {
+    // ⚠️ Shooter 是静态物体，不需要和地面/平台碰撞
     
     // --- 🎯 Shooter 和玩家之间的碰撞检测（踩扁 + 双向掉血）---
     scene.physics.add.overlap(player, shooter, (playerSprite, shooterSprite) => {
@@ -111,14 +124,14 @@ export function setupColliders(scene, shooter, ground, platforms, player) {
             if (shooterSprite.hp <= 0) {
                 console.log('💀 Shooter crushed!');
                 shooterSprite.destroy();
-                hideShooterHealthBar();           // 🔴 隐藏血条！
+                cleanup(scene, healthBlocks);     // 🔴 清理血条！
             }
             return;
         }
         
         // ⚠️ 普通接触 — 双向掉血（虽然 shooter 不动，但玩家可能跳过来碰它）
         if (!scene.playerLastHitTime || now - scene.playerLastHitTime > HIT_COOLDOWN) {
-            scene.playerHP -= config.receivedDamage;  // ⚠️ 碰到炮台也会受伤！
+            scene.playerHP -= config.contactDamage;  // ⚠️ FIX: 使用 contactDamage 而不是 receivedDamage
             console.log(`🎯 Shooter contact! Player HP: ${scene.playerHP}`);
             scene.playerLastHitTime = now;
         }
@@ -135,7 +148,7 @@ export function setupColliders(scene, shooter, ground, platforms, player) {
             if (shooterSprite.hp <= 0) {
                 console.log('💀 Shooter defeated!');
                 shooterSprite.destroy();
-                hideShooterHealthBar();           // 🔴 隐藏血条！
+                cleanup(scene, healthBlocks);     // 🔴 清理血条！
             }
         }
     });
@@ -143,7 +156,13 @@ export function setupColliders(scene, shooter, ground, platforms, player) {
 
 // ========== 创建子弹 ==========
 export function createBullet(scene, x, y) {
-    console.log('🔫 Shooter fires bullet!');
+    console.log('🔫 Shooter fires bullet! Position:', x, y);
+    
+    // ✅ FIX: 检查 player 是否存在（防止 scene.player 为 undefined）
+    if (!scene.player || !scene.player.active) {
+        console.warn('⚠️ createBullet: scene.player does not exist or is inactive');
+        return null;
+    }
     
     const bulletGraphics = scene.make.graphics({ x: 0, y: 0 });
     bulletGraphics.fillStyle(0xffff00);      // 💛 黄色子弹
@@ -154,12 +173,12 @@ export function createBullet(scene, x, y) {
     bullet.setVelocityX(config.bulletSpeed); // ➡️ 向右飞
     bullet.body.setSize(10, 10);
     
-    // 🎯 子弹和玩家碰撞检测
+    // 🎯 子弹和玩家碰撞检测 — FIX: 使用 scene.player 而不是 this.player
     scene.physics.add.overlap(bullet, scene.player, (bulletSprite, playerSprite) => {
         if (!bulletSprite.active || !playerSprite.active) return;
         
         console.log('💥 BULLET HIT! Player HP:', scene.playerHP);
-        scene.playerHP -= config.bulletDamage || 25;
+        scene.playerHP -= config.bulletDamage;  // ✅ FIX: 使用 bulletDamage
         
         // 💀 玩家死亡检查
         if (scene.playerHP <= 0 && !scene.gameOver) {
@@ -185,6 +204,12 @@ export function update(scene, shooter, healthBlocks) {
     
     // 🎯 定时射击逻辑！
     if (now - scene.shooterLastShootTime > config.shootInterval && scene.playerHP > 0) {
+        // ✅ FIX: 确保 player 存在
+        if (!scene.player || !scene.player.active) {
+            console.warn('⚠️ Shooter update: player does not exist, skipping bullet creation');
+            return;
+        }
+        
         // 📍 在枪管末端发射子弹（shooter.x + offset）
         const bulletX = shooter.x + 50;   // 枪管位置
         const bulletY = shooter.y;
@@ -203,7 +228,7 @@ export function update(scene, shooter, healthBlocks) {
     const visibleBlocks = Math.max(0, Math.ceil(shooter.hp / HP_PER_BLOCK));
     
     for (let i = 0; i < config.maxHealthBlocks; i++) {
-        if (healthBlocks[i]) {
+        if (healthBlocks && healthBlocks[i]) {
             healthBlocks[i].setPosition(startX + i * config.healthBlockSize, barCenterY);
             healthBlocks[i].setVisible(i < visibleBlocks);
         }

@@ -2,8 +2,12 @@
  * Phaser 3 - 横版闯关游戏 (Modular Architecture)
  */
 
+// ============ 导入模块 ============
 import Phaser from 'phaser';
 import { cookieEnemy, fleaEnemy } from './enemies';
+
+// 🎯 Import shooter enemy module
+import * as shooterEnemy from './enemies/shooterEnemy';
 
 // ============ 全局常量（让 update 函数也能访问）===========
 const PLAYER_MAX_HP = 100;
@@ -51,18 +55,18 @@ function create() {
 
     // --- 地面 (静态组 - 不会动的物体) ---
     const ground = this.physics.add.staticGroup();
-    
+
     const floorGraphics = this.make.graphics({ x: 0, y: 0 });
     floorGraphics.fillStyle(0x2d5a3d);
     floorGraphics.fillRect(0, 0, 800, 40);
     const floorTexture = floorGraphics.generateTexture('floor', 800, 40);
-    
+
     const floorSprite = this.add.sprite(400, 580, 'floor');
     ground.add(floorSprite);
 
     // --- 平台系统 (Step 2a) ---
     const platforms = this.physics.add.staticGroup();
-    
+
     const platformsData = [
         { x: 150, y: 480 },
         { x: 350, y: 380 },
@@ -70,20 +74,20 @@ function create() {
         { x: 450, y: 200 },
         { x: 650, y: 150 },
     ];
-    
+
     platformsData.forEach(data => {
         const platformGraphics = this.make.graphics({ x: 0, y: 0 });
         platformGraphics.fillStyle(0x6b8c4a);
         platformGraphics.fillRect(0, 0, 100, 20);
         const platformTexture = platformGraphics.generateTexture('platform_' + data.x + '_' + data.y, 100, 20);
-        
+
         const platformSprite = this.add.sprite(data.x, data.y, platformTexture);
         platforms.add(platformSprite);
     });
 
     // --- 💨 Step 2d: 鞋子道具（二段跳）---
     const shoeGraphics = this.make.graphics({ x: 0, y: 0 });
-    
+
     // 绘制鞋子纹理
     shoeGraphics.fillStyle(0xffd700);       // 金黄色鞋身
     shoeGraphics.fillRoundedRect(2, 18, 46, 20, 5);  // 鞋底
@@ -95,15 +99,15 @@ function create() {
     shoeGraphics.fillCircle(28, 10, 2);
     shoeGraphics.fillStyle(0xffff00);        // 黄色闪电标志（表示速度）
     shoeGraphics.fillRect(35, 12, 8, 4);
-    
+
     const shoeTexture = shoeGraphics.generateTexture('shoeItem', 50, 40);
-    
-    // 💨 鞋子道具 — 放在平台上（玩家收集后获得二段跳）
+
+    // 💨 鞋子道具 - 放在平台上（玩家收集后获得二段跳）
     this.shoeItem = this.physics.add.sprite(500, 360, 'shoeItem');
     this.shoeItem.setBounce(0);              // 不弹跳
     this.shoeItem.setCollideWorldBounds(true);
     this.shoeItem.body.setSize(40, 32);      // 稍微小一点的碰撞箱
-    
+
     // 💨 二段跳状态变量
     this.maxJumps = DEFAULT_MAX_JUMPS;       // 当前最大跳跃次数（默认 1）
     this.jumpsUsed = 0;                      // 当前已经用了多少次跳跃
@@ -113,32 +117,25 @@ function create() {
     console.log('🍪 Creating Cookie Enemy via modular API...');
     this.cookieSprite = cookieEnemy.create(this);
     this.cookieHealthBlocks = cookieEnemy.createHealthBar(this);
-    
-    // 🔴 饼干人死亡时清除血条的方法
-    const hideCookieHealthBar = () => {
-        console.log('🗑️ [清理] 隐藏所有饼干人血条方块');
-        this.cookieHealthBlocks.forEach(block => block.setVisible(false));
-    };
 
     // --- 🦟 Step 2e-1: 使用模块化 API 创建跳蚤敌人 ---
     console.log('🦟 Creating Flea Enemy via modular API...');
     this.fleaSprite = fleaEnemy.create(this);
     this.fleaHealthBlocks = fleaEnemy.createHealthBar(this);
-    
-    // 🔴 跳蚤死亡时清除血条的方法
-    const hideFleaHealthBar = () => {
-        console.log('🗑️ [清理] 隐藏所有跳蚤血条方块');
-        this.fleaHealthBlocks.forEach(block => block.setVisible(false));
-    };
+
+    // --- 🎯 Step 2e-1c: 使用模块化 API 创建射手炮台 ---
+    console.log('🎯 Creating Shooter Enemy via modular API...');
+    this.shooterSprite = shooterEnemy.create(this);
+    this.shooterHealthBlocks = shooterEnemy.createHealthBar(this);
 
     // --- 玩家 (红色方块) ---
     const playerGraphics = this.make.graphics({ x: 0, y: 0 });
     playerGraphics.fillStyle(0xff6b6b); // 红色
     playerGraphics.fillRect(0, 0, 32, 48);
     const playerTexture = playerGraphics.generateTexture('player', 32, 48);
-    
+
     this.player = this.physics.add.sprite(100, 450, 'player');
-    
+
     // 玩家物理属性
     this.player.setBounce(0.1);
     this.player.setCollideWorldBounds(true);
@@ -152,20 +149,23 @@ function create() {
     this.physics.add.collider(this.player, platforms);
 
     // --- 🍪 Step 2e-1: 饼干人设置碰撞检测（模块化 API）---
-    cookieEnemy.setupColliders(this, this.cookieSprite, ground, platforms, this.player);
+    cookieEnemy.setupColliders(this, this.cookieSprite, ground, platforms, this.player, this.cookieHealthBlocks);
 
     // --- 🦟 Step 2e-1: 跳蚤设置碰撞检测（模块化 API）---
-    fleaEnemy.setupColliders(this, this.fleaSprite, ground, platforms, this.player);
+    fleaEnemy.setupColliders(this, this.fleaSprite, ground, platforms, this.player, this.fleaHealthBlocks);
+
+    // --- 🎯 Step 2e-1c: 射手炮台设置碰撞检测（模块化 API）---
+    shooterEnemy.setupColliders(this, this.shooterSprite, ground, platforms, this.player, this.shooterHealthBlocks);
 
     // --- 🦟 Step 2e: 鞋子道具收集（overlap）---
     this.physics.add.overlap(this.player, this.shoeItem, (player, shoe) => {
         if (!shoe.active) return;  // 已经被捡走了，跳过
-        
+
         console.log('👟 COLLECTED! Double jump unlocked!');
-        
+
         // 💨 获得二段跳能力
         this.maxJumps = DOUBLE_JUMP_VALUE;
-        
+
         // 🗑️ 鞋子消失
         shoe.destroy();
     });
@@ -173,9 +173,9 @@ function create() {
     // --- 💨 Step 2d: 跳跃键抬起事件（更可靠的二段跳触发）---
     this.input.keyboard.on('keydown-UP', () => {
         if (this.playerHP <= 0) return; // Game Over 时不响应
-        
+
         console.log('⬆️ UP pressed! touching.down:', this.player.body.touching.down, 'jumpsUsed:', this.jumpsUsed);
-        
+
         // ✅ 第一次跳跃：在地面上
         if (this.player.body.touching.down) {
             this.player.setVelocityY(-500);
@@ -189,13 +189,13 @@ function create() {
             console.log('💨 DOUBLE JUMP! jumpsUsed:', this.jumpsUsed, '/', this.maxJumps);
         }
     });
-    
+
     // 🔁 空格键也支持二段跳
     this.input.keyboard.on('keydown-SPACE', (event) => {
         if (this.playerHP <= 0) return;
-        
+
         console.log('␣ SPACE pressed! touching.down:', this.player.body.touching.down, 'jumpsUsed:', this.jumpsUsed);
-        
+
         // ✅ 第一次跳跃
         if (this.player.body.touching.down) {
             this.player.setVelocityY(-500);
@@ -220,22 +220,22 @@ function create() {
 
     // --- 🔴 玩家血条 UI (左上角) - 用小方块实现！---
     console.log('[玩家血条] 开始创建，使用全局常量：PLAYER_MAX_BLOCKS =', PLAYER_MAX_BLOCKS);
-    
+
     this.playerHealthBlocks = [];
     for (let i = 0; i < PLAYER_MAX_BLOCKS; i++) {
         // 计算位置
         const blockX = PLAYER_BAR_X + i * PLAYER_BLOCK_SIZE + PLAYER_BLOCK_SIZE/2;
         const blockY = PLAYER_BAR_Y + PLAYER_BLOCK_SIZE/2;
-        
+
         // 创建小方块 - origin=0.5（中心对齐）
         const block = this.add.rectangle(
-            blockX, 
+            blockX,
             blockY,
             PLAYER_BLOCK_SIZE - 1, // -1 留小间隙
             PLAYER_BLOCK_SIZE,
             0x00ff00               // 绿色
         ).setOrigin(0.5);
-        
+
         block.setDepth(999);       // 确保在最上层
         this.playerHealthBlocks.push(block);
     }
@@ -260,14 +260,14 @@ function create() {
         this.player.setPosition(100, 450);
         this.player.setVelocity(0, 0);
         this.player.clearTint();  // 恢复颜色
-        
+
         // 重置血量
         this.playerHP = PLAYER_MAX_HP;
-        
+
         // 💨 重置二段跳状态
         this.jumpsUsed = 0;
         this.lastJumpFrame = -1;
-        
+
         // 🍪 重置饼干人位置
         if (this.cookieSprite) {
             this.cookieSprite.setPosition(600, 200);
@@ -276,7 +276,7 @@ function create() {
             this.cookieSprite.hp = cookieEnemy.config.hp;
             this.cookieSprite.setVelocityX(80);
         }
-        
+
         // 🦟 重置跳蚤位置
         if (this.fleaSprite) {
             this.fleaSprite.setPosition(300, 180);
@@ -284,11 +284,19 @@ function create() {
             this.fleaSprite.setVisible(true);
             this.fleaSprite.hp = fleaEnemy.config.hp;
         }
-        
+
+        // 🎯 重置射手炮台（静态，只需要重置 HP）
+        if (this.shooterSprite) {
+            this.shooterSprite.setActive(true);
+            this.shooterSprite.setVisible(true);
+            this.shooterSprite.hp = shooterEnemy.config.hp;
+            this.shooterLastShootTime = 0;  // 🔫 重置射击计时器
+        }
+
         // 隐藏 Game Over 文字
         this.gameOverText.setVisible(false);
         this.gameOver = false;
-        
+
         console.log('🔄 游戏重新开始！');
     };
 
@@ -303,7 +311,6 @@ function create() {
 function update() {
     try {
         const speed = 250;
-        
 
         // --- 左右移动 ---
         if (this.cursors.left.isDown) {
@@ -315,19 +322,22 @@ function update() {
         }
 
         // --- 💨 跳跃（支持二段跳）---
-        
+
         // 🔄 每帧检查落地 → 立即重置跳跃次数
         if (this.player.body.touching.down && this.jumpsUsed > 0) {
             console.log('👟 Landed! Reset jumpsUsed to 0');
             this.jumpsUsed = 0;
         }
-        
+
         // ⌨️ 跳跃键检测已移到 create() 中的 keydown 事件
         // 这里只需要重置逻辑即可
 
         // --- 🍪 Step 2e-1: 使用模块化 API 更新饼干人 ---
         if (this.cookieSprite && this.cookieSprite.active) {
+            console.log('[Update] Cookie sprite active, calling update...');
             cookieEnemy.update(this, this.cookieSprite, this.cookieHealthBlocks);
+        } else {
+            console.log('[Update] Cookie sprite NOT active or does not exist');
         }
 
         // --- 🦟 Step 2e-1: 使用模块化 API 更新跳蚤 ---
@@ -335,9 +345,14 @@ function update() {
             fleaEnemy.update(this, this.fleaSprite, this.fleaHealthBlocks);
         }
 
+        // --- 🎯 Step 2e-1c: 使用模块化 API 更新射手炮台 ---
+        if (this.shooterSprite && this.shooterSprite.active) {
+            shooterEnemy.update(this, this.shooterSprite, this.shooterHealthBlocks);
+        }
+
         // --- 🔴 玩家血条更新（方块消失效果）---
         const playerVisibleBlocks = Math.max(0, Math.ceil(this.playerHP / HP_PER_BLOCK));  // 每块=5HP
-        
+
         for (let i = 0; i < PLAYER_MAX_BLOCKS; i++) {
             if (this.playerHealthBlocks[i]) {
                 const shouldBeVisible = (i < playerVisibleBlocks);
@@ -359,8 +374,12 @@ function update() {
             ? this.fleaSprite.hp.toString()
             : 'dead';
         
+        const shooterStatus = this.shooterSprite && this.shooterSprite.active
+            ? this.shooterSprite.hp.toString()
+            : 'dead';
+        
         this.debugText.setText(
-            `HP: ${this.playerHP}/100 | 🍪 Cookie: ${cookieStatus} | 🦟 Flea: ${fleaStatus}\n`
+            `HP: ${this.playerHP}/100 | 🍪 Cookie: ${cookieStatus} | 🦟 Flea: ${fleaStatus} | 🎯 Shooter: ${shooterStatus}\n`
             + `位置：(${Math.round(this.player.x)}, ${Math.round(this.player.y)})\n`  
             + `在地面：${this.player.body.touching.down} | 💨 Jumps: ${this.jumpsUsed}/${this.maxJumps}`
         );
