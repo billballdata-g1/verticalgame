@@ -22,6 +22,8 @@ const DOUBLE_JUMP_VALUE = 2;       // 鞋子道具给的跳跃次数
 // 🦟 跳蚤敌人相关常量
 const FLEA_HP = 30;                // 低血量（2 下踩扁或 6 次接触）
 const FLEA_SIZE = 16;              // 小小的（饼干人是 50x50）
+const FLEA_MAX_BLOCKS = 6;         // 30HP / 5 = 6 blocks
+const FLEA_BLOCK_SIZE = 6;         // 比敌人血条小一点
 
 // ============ 游戏配置 ============
 const config = {
@@ -430,6 +432,23 @@ function create() {
     }
     console.log('✅ [敌人血条] 创建完成：', this.enemyHealthBlocks.length, '个小方块');
 
+    // --- 🦟 Step 2e: 跳蚤血条 UI (头顶) - 用更小的方块实现！---
+    console.log('[跳蚤血条] 开始创建，使用全局常量：FLEA_MAX_BLOCKS =', FLEA_MAX_BLOCKS);
+    
+    this.fleaHealthBlocks = [];
+    for (let i = 0; i < FLEA_MAX_BLOCKS; i++) {
+        const block = this.add.rectangle(
+            0, 0,
+            FLEA_BLOCK_SIZE - 1,
+            FLEA_BLOCK_SIZE,
+            0x8b4513               // 深棕色（和跳蚤身体颜色一致）
+        ).setOrigin(0.5);
+        
+        block.setDepth(997);       // 在敌人血条之下
+        this.fleaHealthBlocks.push(block);
+    }
+    console.log('✅ [跳蚤血条] 创建完成：', this.fleaHealthBlocks.length, '个小方块');
+
     // --- UI: 调试信息 ---
     this.debugText = this.add.text(10, 60, '', {
         fontSize: '12px',
@@ -505,13 +524,26 @@ function update() {
         // ⌨️ 跳跃键检测已移到 create() 中的 keydown 事件
         // 这里只需要重置逻辑即可
 
-        // --- 敌人巡逻逻辑 ---
+        // --- 🍪 Step 2b: 饼干人全屏巡逻 + 玩家吸引机制 ---
         const enemySpeed = 80;
 
         if (this.enemyPreview && this.enemyPreview.active) {
-            if (this.enemyPreview.x > 650) {
+            // 🎯 玩家吸引机制：玩家在附近（距离 < 400px）时，主动扑向玩家！
+            const distToPlayer = Phaser.Math.Distance.Between(
+                this.enemyPreview.x, this.enemyPreview.y,
+                this.player.x, this.player.y
+            );
+            
+            if (distToPlayer < 400 && this.playerHP > 0) {
+                // 🎯 扑向玩家！
+                const dx = this.player.x - this.enemyPreview.x;
+                const direction = Math.sign(dx);
+                this.enemyPreview.setVelocityX(direction * enemySpeed * 1.5);  // ⚡ 加速扑向玩家
+            }
+            // 📺 全屏巡逻（扩大范围）
+            else if (this.enemyPreview.x > 780) {
                 this.enemyPreview.setVelocityX(-enemySpeed);
-            } else if (this.enemyPreview.x < 550) {
+            } else if (this.enemyPreview.x < 20) {
                 this.enemyPreview.setVelocityX(enemySpeed);
             }
 
@@ -544,19 +576,68 @@ function update() {
             }
         }
 
-        // --- 🦟 Step 2e: 跳蚤跳跃逻辑 ---
+        // --- 🦟 Step 2e: 跳蚤智能跳跃 + 血条跟随移动 ---
         if (this.fleaEnemy && this.fleaEnemy.active) {
             const now = Date.now();
             
-            // 🔍 检查是否可以跳跃：在地面上 + 过了最小间隔时间
-            if (this.fleaEnemy.body.touching.down && 
-                now - this.fleaLastJumpTime > this.fleaJumpIntervalMin) {
+            // 🔴 更新跳蚤血条位置（跟随移动）+ 方块显示/隐藏
+            const fleaBarCenterX = this.fleaEnemy.x;
+            const fleaBarCenterY = this.fleaEnemy.y - 25;  // ⬆️ 头顶上方，更近一点
+            
+            const fleaTotalBarWidth = FLEA_MAX_BLOCKS * FLEA_BLOCK_SIZE;
+            const fleaStartX = fleaBarCenterX - fleaTotalBarWidth / 2;
+            
+            const fleaVisibleBlocks = Math.max(0, Math.ceil(this.fleaEnemy.hp / HP_PER_BLOCK));
+            
+            for (let i = 0; i < FLEA_MAX_BLOCKS; i++) {
+                if (this.fleaHealthBlocks[i]) {
+                    this.fleaHealthBlocks[i].setPosition(
+                        fleaStartX + i * FLEA_BLOCK_SIZE,
+                        fleaBarCenterY
+                    );
+                    
+                    const shouldBeVisible = (i < fleaVisibleBlocks);
+                    this.fleaHealthBlocks[i].setVisible(shouldBeVisible);
+                }
+            }
+            
+            // 🎯 玩家吸引机制：玩家在附近（距离 < 300px）时，扑向玩家！
+            const distToPlayer = Phaser.Math.Distance.Between(
+                this.fleaEnemy.x, this.fleaEnemy.y,
+                this.player.x, this.player.y
+            );
+            
+            if (distToPlayer < 300 && this.playerHP > 0) {
+                // 🎯 扑向玩家！
+                const dx = this.player.x - this.fleaEnemy.x;
+                const dy = this.player.y - this.fleaEnemy.y;
                 
-                // 🎲 随机决定是否跳跃（50% 几率）
-                if (Math.random() < 0.5) {
-                    console.log('🦟 Flea JUMP!');
-                    this.fleaEnemy.setVelocityY(-600);  // ⬆️ 跳蚤跳跃速度（比玩家快一点）
+                // ⬅️➡️ 水平移动（朝向玩家）
+                this.fleaEnemy.setVelocityX(Math.sign(dx) * 120);
+                
+                // ⬆️ 如果玩家在高处，跳跃！
+                if (dy < -50 && this.fleaEnemy.body.touching.down && 
+                    now - this.fleaLastJumpTime > 200) {
+                    console.log('🦟 Flea POUNCE on player!');
+                    this.fleaEnemy.setVelocityY(-600);
                     this.fleaLastJumpTime = now;
+                }
+            }
+            // 🎲 否则随机左右跳跃探索
+            else if (this.fleaEnemy.body.touching.down && 
+                     now - this.fleaLastJumpTime > this.fleaJumpIntervalMin) {
+                
+                const randomDirection = Math.random() < 0.5 ? -1 : 1;
+                const shouldJump = Math.random() < 0.7;  // 70% 几率跳跃
+                
+                if (shouldJump) {
+                    console.log(`🦟 Flea JUMP! direction: ${randomDirection > 0 ? 'right' : 'left'}`);
+                    this.fleaEnemy.setVelocityX(randomDirection * 100);  // ⬅️➡️ 水平移动
+                    this.fleaEnemy.setVelocityY(-600);  // ⬆️ 向上跳跃
+                    this.fleaLastJumpTime = now;
+                } else {
+                    // 🐌 缓慢左右移动探索
+                    this.fleaEnemy.setVelocityX(randomDirection * 30);
                 }
             }
         }
