@@ -19,6 +19,10 @@ const ENEMY_MAX_BLOCKS = 12;       // 60HP / 5 = 12 blocks
 const DEFAULT_MAX_JUMPS = 1;       // 默认只能跳一次
 const DOUBLE_JUMP_VALUE = 2;       // 鞋子道具给的跳跃次数
 
+// 🦟 跳蚤敌人相关常量
+const FLEA_HP = 30;                // 低血量（2 下踩扁或 6 次接触）
+const FLEA_SIZE = 16;              // 小小的（饼干人是 50x50）
+
 // ============ 游戏配置 ============
 const config = {
     type: Phaser.AUTO,
@@ -140,6 +144,41 @@ function create() {
     const enemySpeed = 80;
     this.enemyPreview.setVelocityX(enemySpeed);
 
+    // --- 🦟 Step 2e: 跳蚤敌人（小小的一只，会跳跃！）---
+    const fleaGraphics = this.make.graphics({ x: 0, y: 0 });
+    
+    // 绘制跳蚤纹理 — 小小的深色椭圆 + 腿
+    fleaGraphics.fillStyle(0x4a3728);       // 深棕色身体
+    fleaGraphics.fillEllipse(10, 10, 16, 10);  // 椭圆形身体（比饼干人小很多）
+    
+    // 六条腿 — 用短矩形代替（简化版本）
+    fleaGraphics.fillStyle(0x4a3728);
+    fleaGraphics.fillRect(2, 5, 3, 2);      // 左前腿
+    fleaGraphics.fillRect(15, 5, 3, 2);     // 右前腿
+    fleaGraphics.fillRect(2, 13, 3, 2);     // 左后腿
+    fleaGraphics.fillRect(15, 13, 3, 2);    // 右后腿
+    
+    // 两只小眼睛 — 白色圆点
+    fleaGraphics.fillStyle(0xffffff);
+    fleaGraphics.fillCircle(7, 8, 2);      // 左眼
+    fleaGraphics.fillCircle(13, 8, 2);     // 右眼
+    
+    const fleaTexture = fleaGraphics.generateTexture('fleaEnemy', FLEA_SIZE * 2, FLEA_SIZE * 2);
+    
+    // 🦟 跳蚤敌人 — 放在平台上（会跳跃）
+    this.fleaEnemy = this.physics.add.sprite(300, 180, 'fleaEnemy');
+    this.fleaEnemy.hp = FLEA_HP;           // 🔴 低血量！
+    this.fleaEnemy.setBounce(0.1);
+    this.fleaEnemy.setCollideWorldBounds(true);
+    this.fleaEnemy.body.setSize(FLEA_SIZE, FLEA_SIZE);  // ⭐ 小小的碰撞箱
+    
+    // 🦟 跳蚤行为控制变量
+    this.fleaLastJumpTime = 0;             // 上次跳跃时间（用于随机跳跃）
+    this.fleaJumpIntervalMin = 1500;       // 最短跳跃间隔（毫秒）
+    this.fleaJumpIntervalMax = 3000;       // 最长跳跃间隔
+    
+    console.log('🦟 Flea enemy created at (300, 180), HP:', FLEA_HP);
+
     // --- 玩家 (红色方块) ---
     const playerGraphics = this.make.graphics({ x: 0, y: 0 });
     playerGraphics.fillStyle(0xff6b6b); // 红色
@@ -160,7 +199,11 @@ function create() {
     this.physics.add.collider(this.player, ground);
     this.physics.add.collider(this.player, platforms);
 
-    // --- 💨 Step 2d: 鞋子道具收集（overlap）---
+    // --- 🦟 跳蚤敌人也要和平台/地面碰撞（不会掉下去）---
+    this.physics.add.collider(this.fleaEnemy, ground);
+    this.physics.add.collider(this.fleaEnemy, platforms);
+
+    // --- 🦟 Step 2e: 鞋子道具收集（overlap）---
     this.physics.add.overlap(this.player, this.shoeItem, (player, shoe) => {
         if (!shoe.active) return;  // 已经被捡走了，跳过
         
@@ -216,6 +259,54 @@ function create() {
     // --- 🐛 FIX: 鞋子和地面/平台碰撞（不会掉到地下）---
     this.physics.add.collider(this.shoeItem, ground);
     this.physics.add.collider(this.shoeItem, platforms);
+
+    // --- 🦟 Step 2e: 跳蚤敌人和玩家之间的碰撞检测（双向掉血 + 踩扁）---
+    this.physics.add.overlap(this.player, this.fleaEnemy, (player, flea) => {
+        if (!flea.active) return;  // 跳蚤已经死了
+        
+        const now = Date.now();
+        
+        // 💥 踩扁机制 — 从上方落下时（秒杀！）
+        if (player.body.touching.down && player.body.velocity.y > 0) {
+            console.log('💥 STEP ON FLEA!');
+            player.setVelocityY(-200);      // ⬆️ 玩家弹跳
+            flea.hp -= 30;                  // 💀 直接秒杀（跳蚤只有 30HP）
+            
+            if (flea.hp <= 0) {
+                console.log('💀 Flea crushed!');
+                flea.destroy();
+            }
+            return;
+        }
+        
+        // ⚠️ 普通接触 — 双向掉血
+        const playerDamage = 15;   // 跳蚤伤害比饼干人低（每次 -15HP）
+        const fleaDamage = 10;     // 玩家对跳蚤造成较少伤害（每次 -10HP）
+        
+        // 玩家掉血
+        if (!this.playerLastHitTime || now - this.playerLastHitTime > 200) {
+            this.playerHP -= playerDamage;
+            console.log(`🦟 Flea bites! Player HP: ${this.playerHP}`);
+            this.playerLastHitTime = now;
+        }
+        
+        // 跳蚤掉血
+        if (!flea.lastHitTime || now - flea.lastHitTime > 200) {
+            flea.hp -= fleaDamage;
+            console.log(`🦟 Flea hurt! HP: ${flea.hp}`);
+            flea.lastHitTime = now;
+            
+            // 🔄 弹开效果
+            const direction = player.x < flea.x ? -1 : 1;
+            player.setVelocity(direction * 150, -200);
+            
+            // 💀 跳蚤死亡
+            if (flea.hp <= 0) {
+                console.log('💀 Flea defeated!');
+                flea.destroy();
+            }
+        }
+    });
 
     // --- 敌人也要和平台/地面碰撞（不会掉下去）---
     this.physics.add.collider(this.enemyPreview, ground);
@@ -449,6 +540,23 @@ function update() {
                     // 🔴 控制可见性：有血就显示，没血就隐藏
                     const shouldBeVisible = (i < visibleBlocks);
                     this.enemyHealthBlocks[i].setVisible(shouldBeVisible);
+                }
+            }
+        }
+
+        // --- 🦟 Step 2e: 跳蚤跳跃逻辑 ---
+        if (this.fleaEnemy && this.fleaEnemy.active) {
+            const now = Date.now();
+            
+            // 🔍 检查是否可以跳跃：在地面上 + 过了最小间隔时间
+            if (this.fleaEnemy.body.touching.down && 
+                now - this.fleaLastJumpTime > this.fleaJumpIntervalMin) {
+                
+                // 🎲 随机决定是否跳跃（50% 几率）
+                if (Math.random() < 0.5) {
+                    console.log('🦟 Flea JUMP!');
+                    this.fleaEnemy.setVelocityY(-600);  // ⬆️ 跳蚤跳跃速度（比玩家快一点）
+                    this.fleaLastJumpTime = now;
                 }
             }
         }
