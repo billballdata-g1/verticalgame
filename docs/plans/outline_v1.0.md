@@ -206,50 +206,206 @@ s.git revert    # 撤销最近一次提交
 
 ## 📊 **进度追踪**
 
-| Step | 状态 | Commit ID |
-|------|------|-----------|
-| Step 1: 项目初始化 + 玩家移动 | ✅ COMPLETED | `5f240ff` |
-| Step 2a: 平台系统 | ✅ COMPLETED | `b3e0bb6` |
-| Step 2b-1 ~ 2b-3: 敌人渲染/巡逻 | ✅ COMPLETED | `7b2cf77` |
-| Step 2b-4: Game Over 系统 | ✅ COMPLETED | `7b2cf77` |
-| **Step 2b-5: 血量系统 + 血条 UI** | ⏳ **IN PROGRESS (BUG)** | `08bcd95` |
+| Step | 状态 | Commit ID | 备注 |
+|------|------|-----------|------|
+| Step 1: 项目初始化 + 玩家移动 | ✅ COMPLETED | `5f240ff` | Phaser + Vite |
+| Step 2a: 平台系统 | ✅ COMPLETED | `b3e0bb6` | 5 个平台 |
+| Step 2b-1 ~ 2b-3: 饼干敌人渲染/巡逻 | ✅ COMPLETED | `7b2cf77` | 🍪 Walker 类型 |
+| Step 2b-4: Game Over + R 键重启 | ✅ COMPLETED | `7b2cf77` | 红色 UI |
+| **Step 2b-5: 双向血量系统 + 血条 UI** | ✅ **COMPLETED (FIXED)** | `_待提交_` | 💡小方块拼接法修复 |
+| Step 2c-1 ~ 2c-3: 跳蚤敌人 🦟 | ✅ COMPLETED | `_待提交_` | Jumper + Player Attraction |
+| Step 2d: 鞋子道具 - 二段跳 💨 | ✅ COMPLETED | `_待提交_` | 金黄色鞋子，位置 (500,360) |
+| **Step 2e: 敌人模块化架构** | ⏳ **IN PROGRESS** | — | 📁 `src/enemies/` 已创建 |
 
 ---
 
-*大纲版本：v1.0 — 创建时间：2026-03-20*
+### 🔴 **当前正在做：Step 2e - 敌人系统重构与集成计划**
+
+#### 📋 **完整开发流程（逐步验证）**
+
+```yaml
+Phase 1: 标准化代码结构 ✅ COMPLETED
+───────────────────────────────────────
+Step 2e-1: 统一饼干人 + 跳蚤的代码架构
+           
+目标：确保两个敌人的模块遵循 enemybuilder skill 的标准格式
+
+现状:
+  ✅ src/enemies/types.js         (共享常量 HP_PER_BLOCK, HIT_COOLDOWN)
+  ✅ src/enemies/index.js          (导出口 cookieEnemy, fleaEnemy, shooterEnemy)
+  ✅ src/enemies/cookieEnemy.js    (标准化 Walker 类型模块)
+  ✅ src/enemies/fleaEnemy.js      (标准化 Jumper 类型模块)
+  ✅ skills/enemybuilder/SKILL.md  (完整标准化指南)
+
+验证:
+  - export const config = {...}       ← ✅ 配置常量统一格式
+  - export function create(scene)     ← ✅ 创建敌人实例
+  - export function createHealthBar() ← ✅ 血条 UI 工厂函数
+  - export function setupColliders()  ← ✅ 碰撞检测设置
+  - export function update()          ← ✅ 每帧更新逻辑
+
+下一步：在 GitHub 上建 branch，保存这个标准化成果！
 
 ---
 
-## 🚨 **当前卡住的问题 (2026-03-20)**
+Phase 2: 重构主程序 ⏳ PENDING
+───────────────────────────────────────
+Step 2e-2a: 讨论是否编写代码生成脚本
+            
+目的：减少手动复制粘贴，提高重构效率
+方案:
+  Option A: 写一个 Node.js 脚本
+    - 读取 enemy module 的配置
+    - 自动生成 main.js 中需要的代码片段
+    - 输出到剪贴板（直接粘贴）
+  
+  Option B: 手动复制粘贴模板
+    - 准备标准化代码模板
+    - 替换变量名即可
+    - 适合一次性重构，不值得写脚本
 
-### ❌ **血条宽度不变化 Bug** 🔴 HIGH PRIORITY
+决策：[等待讨论]
 
-**症状**: 
-- HP 数字正常显示和更新 (`HP: X/100 | Enemy: Y/60`)
-- 玩家血条（绿色）始终满的，不随 HP 缩短
-- 敌人血条（红色）位置跟随正确，但宽度也不变化
+Step 2e-2b: 正式重构 main.js（不管用不用脚本）
+           
+任务:
+  a. 移除内联敌人代码
+     ❌ 删除所有直接在 create() 中绘制的敌人纹理
+     ❌ 删除 inline 的 enemy physics setup
+     ❌ 删除 update() 中的敌人行为逻辑
+  
+  b. 使用模块化 API
+     ✅ import { cookieEnemy, fleaEnemy } from './enemies'
+     ✅ this.cookieSprite = cookieEnemy.create(this)
+     ✅ this.fleaSprite = fleaEnemy.create(this)
+     ✅ 调用 setupColliders() + update()
 
-**已尝试方案 (全部无效)**:
-1. ✅ `.setOrigin(0)` — 让 Rectangle 左端固定
-2. ❌ `setPosition()` — 用于敌人血条跟随移动（这个有效）
-3. ❌ 强制刷新浏览器、重启 Vite
-4. ❌ 添加 console.log 调试输出
+---
 
-**代码位置**: `src/main.js` Line ~195-230
+Phase 3: 逐步集成敌人（逐个验证） ⏳ PENDING
+───────────────────────────────────────
+Step 2e-3a: 只放饼干人进去测试
+            
+目的：最小化变量，确保重构正确
+流程:
+  1. main.js 中只保留 cookieEnemy 的代码
+  2. npm run dev → 测试游戏运行
+  3. 验证：移动/跳跃/踩扁/接触掉血/血条显示都正常
+  
+成功标准:
+  ✅ 饼干人正确渲染在 (600, 200)
+  ✅ 左右巡逻 + 玩家吸引机制正常
+  ✅ 踩扁秒杀生效，血条更新正常
 
-```javascript
-// create() — 创建血条时设置 origin=0
-this.playerBarFG = this.add.rectangle(200, 35, 160, 20, 0x00ff00).setOrigin(0);
+Step 2e-3b: 加跳蚤进去测试
+             
+流程:
+  1. main.js 中添加 fleaEnemy
+  2. npm run dev → 验证两个敌人同时存在
+  3. 检查：
+     - 饼干人 + 跳蚤独立巡逻/跳跃
+     - 血条不冲突（depth 层级正确）
+     - 碰撞检测各自独立工作
 
-// update() — 每帧更新宽度
-const playerPct = Math.max(0, this.playerHP / PLAYER_MAX_HP);
-if (this.playerBarFG) {
-    this.playerBarFG.width = 160 * playerPct;
-}
+成功标准:
+  ✅ 两个敌人都正常渲染和移动
+  ✅ 血条显示在不同 height，不重叠
+  ✅ 踩扁饼干人后跳蚤不受影响
+
+Step 2e-3c: 加 shooterEnemy 进去测试
+               
+流程:
+  1. main.js 中添加 shooterEnemy（静态炮台！）
+  2. npm run dev → 验证三个敌人同时存在
+  3. 检查：
+     - shooter 固定在 (400, 350)，不移动
+     - 每 2 秒向右发射子弹
+     - 踩扁 shooter 秒杀生效
+
+成功标准:
+  ✅ 射手炮台静止不动，定时射击
+  ✅ 三个敌人血条互不干扰
+  ✅ 所有碰撞检测正常工作
 ```
 
-**下一步排查方向**:
-- [ ] 尝试用 `setScaleX()` 替代 `.width`（Phaser 可能优化了 width 属性）
-- [ ] 查看 Phaser Rectangle 的官方文档，确认 anchor/origin 机制
-- [ ] StackOverflow: "Phaser health bar width not changing"
-- [ ] 创建一个最小的测试用例验证问题
+---
+
+#### 📊 **Phase 4: 经验总结与文档更新** ⏳ PENDING
+
+```yaml
+Step 2e-4a: 更新 enemybuilder skill
+            
+添加内容:
+  - ✅ 完整的重构案例（从内联 → 模块化）
+  - ✅ 代码模板对比（before/after）
+  - ✅ 常见陷阱和解决方案
+
+Step 2e-4b: 更新 gamebuilder skill
+             
+添加内容:
+  - ✅ 模块化架构设计原则
+  - ✅ "逐步集成，逐个验证"的工作流
+  - ✅ GitHub branch 管理策略（feature branch → main）
+```
+
+---
+
+*大纲版本：v1.0 — 最后更新：2026-03-21 16:25 GMT+8*
+
+---
+
+## 🚨 **当前卡住的问题 (2026-03-21)**
+
+### ✅ **血条宽度不变化 Bug** — FIXED 💡
+
+**修复日期**: 2026-03-21 12:04
+
+**原症状**: HP 数字正常显示和更新，但血条宽度始终固定。
+
+**失败方案**: 
+- ❌ `.setOrigin(0)` — Phaser Rectangle 锚点设置
+- ❌ `setPosition()` — 敌人血条跟随移动
+- ❌ 强制刷新、重启 Vite
+- ❌ `setScaleX()` 替代 `.width`
+
+**✅ 最终解决方案：小方块拼接法**
+- 每块代表 5HP，掉血时右侧方块逐个消失
+- **本质思考**: "血条"的核心是可视化血量变化 — **如何实现不重要，效果对就行**
+
+---
+
+## 🎯 **下一步行动计划**
+
+### 🔴 **当前任务：Step 2e-1 - 标准化完成，准备建 Branch**
+
+```bash
+# ✅ 已完成：饼干人 + 跳蚤的代码结构已统一
+
+# ⏳ 下一步：在 GitHub 上创建 feature branch
+gh repo fork billballdata-g1/verticalgame  # (如果需要)
+gh checkout -b feature/modular-enemy-system
+# Add commit message about standardized enemy modules
+```
+
+### 📋 **完整流程概览**
+
+| Phase | Step | 任务 | 状态 |
+|-------|------|------|------|
+| **Phase 1** | 2e-1 | 标准化敌人代码结构 | ✅ DONE |
+| | — | GitHub 建 branch + commit | ⏳ NEXT |
+| **Phase 2** | 2e-2a | 讨论是否写代码生成脚本 | ⏳ TODO |
+| | 2e-2b | 重构 main.js 使用模块化 API | ⏳ TODO |
+| **Phase 3** | 2e-3a | 只放饼干人进去测试 | ⏳ TODO |
+| | 2e-3b | 加跳蚤进去测试 | ⏳ TODO |
+| | 2e-3c | 加 shooterEnemy 测试 | ⏳ TODO |
+| **Phase 4** | 2e-4a/b | 更新 enemybuilder + gamebuilder skill | ⏳ TODO |
+
+### 💡 **关键设计决策（待讨论）**
+
+**是否编写代码生成脚本？**
+
+> **Option A: 写脚本** — 适合未来频繁添加敌人，一次性投入值得
+> 
+> **Option B: 手动复制粘贴** — 这次只是重构现有敌人，不值得花时间写工具
+
+我的建议：先手动完成这次重构，如果后续经常需要加新敌人再考虑自动化。
