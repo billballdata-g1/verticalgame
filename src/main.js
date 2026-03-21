@@ -277,6 +277,7 @@ function create() {
             if (flea.hp <= 0) {
                 console.log('💀 Flea crushed!');
                 flea.destroy();
+                hideFleaHealthBar();        // 🔴 隐藏血条！
             }
             return;
         }
@@ -306,6 +307,7 @@ function create() {
             if (flea.hp <= 0) {
                 console.log('💀 Flea defeated!');
                 flea.destroy();
+                hideFleaHealthBar();        // 🔴 隐藏血条！
             }
         }
     });
@@ -324,6 +326,12 @@ function create() {
     const hideEnemyHealthBar = () => {
         console.log('🗑️ [清理] 隐藏所有敌人血条方块');
         this.enemyHealthBlocks.forEach(block => block.setVisible(false));
+    };
+
+    // --- 🦟 Step 2e: 跳蚤死亡时清除血条的方法 ---
+    const hideFleaHealthBar = () => {
+        console.log('🗑️ [清理] 隐藏所有跳蚤血条方块');
+        this.fleaHealthBlocks.forEach(block => block.setVisible(false));
     };
 
     // --- 💥 Step 2c-1: 踩扁机制 + 双向掉血 (改用 overlap，每帧触发) ---
