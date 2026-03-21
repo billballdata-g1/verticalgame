@@ -83,8 +83,20 @@ export function createHealthBar(scene) {
     return healthBlocks;
 }
 
+// ========== Cleanup: 敌人死亡时清理资源 ==========
+export function cleanup(scene, healthBlocks) {
+    console.log('🗑️ [Cookie] Cleanup — hide health bar');
+    if (healthBlocks && Array.isArray(healthBlocks)) {
+        healthBlocks.forEach(block => {
+            if (block) block.setVisible(false);
+        });
+    }
+}
+
 // ========== 设置碰撞检测 ==========
-export function setupColliders(scene, enemy, ground, platforms, player) {
+export function setupColliders(scene, enemy, ground, platforms, player, healthBlocks) {
+    // 🔴 注意：healthBlocks 必须传入，这样 cleanup() 才能隐藏血条
+    
     // --- 敌人与平台/地面碰撞（不会掉下去）---
     scene.physics.add.collider(enemy, ground);
     scene.physics.add.collider(enemy, platforms);
@@ -111,7 +123,7 @@ export function setupColliders(scene, enemy, ground, platforms, player) {
             if (enemySprite.hp <= 0) {
                 console.log('💀 Enemy crushed by stomp!');
                 enemySprite.destroy();
-                // hideEnemyHealthBar() will be called from main.js
+                cleanup(scene, healthBlocks);  // 🔴 直接调用 cleanup（不是 cookieEnemy.cleanup）
             }
             
             return; // ⭐ 踩扁时跳过普通碰撞的伤害逻辑
@@ -141,7 +153,7 @@ export function setupColliders(scene, enemy, ground, platforms, player) {
             if (enemySprite.hp <= 0) {
                 console.log('💥 饼干人被击败了！');
                 enemySprite.destroy();          // 删除敌人
-                // hideEnemyHealthBar() will be called from main.js
+                cleanup(scene, healthBlocks);     // 🔴 隐藏所有血条方块
             }
         }
         
@@ -196,7 +208,7 @@ export function update(scene, enemy, healthBlocks) {
     
     // 更新每个小方块的位置和可见性
     for (let i = 0; i < config.maxHealthBlocks; i++) {
-        if (healthBlocks[i]) {
+        if (healthBlocks && healthBlocks[i]) {
             // 设置位置（横向排列）
             healthBlocks[i].setPosition(
                 startX + i * config.healthBlockSize,

@@ -89,8 +89,20 @@ export function createHealthBar(scene) {
     return healthBlocks;
 }
 
+// ========== Cleanup: 敌人死亡时清理资源 ==========
+export function cleanup(scene, healthBlocks) {
+    console.log('🗑️ [Flea] Cleanup — hide health bar');
+    if (healthBlocks && Array.isArray(healthBlocks)) {
+        healthBlocks.forEach(block => {
+            if (block) block.setVisible(false);
+        });
+    }
+}
+
 // ========== 设置碰撞检测 ==========
-export function setupColliders(scene, flea, ground, platforms, player) {
+export function setupColliders(scene, flea, ground, platforms, player, healthBlocks) {
+    // 🔴 注意：healthBlocks 必须传入，这样 cleanup() 才能隐藏血条
+    
     // --- 🦟 跳蚤敌人也要和平台/地面碰撞（不会掉下去）---
     scene.physics.add.collider(flea, ground);
     scene.physics.add.collider(flea, platforms);
@@ -110,7 +122,7 @@ export function setupColliders(scene, flea, ground, platforms, player) {
             if (fleaSprite.hp <= 0) {
                 console.log('💀 Flea crushed!');
                 fleaSprite.destroy();
-                // hideFleaHealthBar() will be called from main.js
+                cleanup(scene, healthBlocks);  // 🔴 直接调用 cleanup（不是 fleaEnemy.cleanup）
             }
             return;
         }
@@ -137,7 +149,7 @@ export function setupColliders(scene, flea, ground, platforms, player) {
             if (fleaSprite.hp <= 0) {
                 console.log('💀 Flea defeated!');
                 fleaSprite.destroy();
-                // hideFleaHealthBar() will be called from main.js
+                cleanup(scene, healthBlocks);  // 🔴 直接调用 cleanup（不是 fleaEnemy.cleanup）
             }
         }
     });
@@ -159,7 +171,7 @@ export function update(scene, flea, healthBlocks) {
     const fleaVisibleBlocks = Math.max(0, Math.ceil(flea.hp / HP_PER_BLOCK));
     
     for (let i = 0; i < config.maxHealthBlocks; i++) {
-        if (healthBlocks[i]) {
+        if (healthBlocks && healthBlocks[i]) {
             healthBlocks[i].setPosition(
                 fleaStartX + i * config.healthBlockSize,
                 fleaBarCenterY
