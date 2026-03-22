@@ -169,8 +169,19 @@ export function createBullet(scene, x, y) {
     bulletGraphics.fillCircle(5, 5, 8);
     const bulletTexture = bulletGraphics.generateTexture('shooterBullet', 16, 16);
     
+    // 🔄 360°追踪射击 — 计算朝向玩家的速度向量
+    const dx = scene.player.x - x;
+    const dy = scene.player.y - y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    // ✅ 单位化方向向量 × 子弹速度
+    const vx = (dx / distance) * config.bulletSpeed;  // X 轴速度分量
+    const vy = (dy / distance) * config.bulletSpeed;  // Y 轴速度分量
+    
+    console.log(`🎯 Bullet velocity: (${vx.toFixed(0)}, ${vy.toFixed(0)}) — angle: ${Math.atan2(dy, dx).toFixed(2)} rad`);
+    
     const bullet = scene.physics.add.sprite(x, y, 'shooterBullet');
-    bullet.setVelocityX(config.bulletSpeed); // ➡️ 向右飞
+    bullet.setVelocity(vx, vy);  // 🔄 360°追踪射击！
     bullet.body.setSize(10, 10);
     
     // 🎯 子弹和玩家碰撞检测 — FIX: 使用 scene.player 而不是 this.player
@@ -200,6 +211,16 @@ export function createBullet(scene, x, y) {
 export function update(scene, shooter, healthBlocks) {
     if (!shooter || !shooter.active) return;
     
+    // 🔄 360°追踪玩家 — 动态调整炮口角度
+    if (scene.player && scene.player.active) {
+        const dx = scene.player.x - shooter.x;
+        const dy = scene.player.y - shooter.y;
+        const angleRad = Math.atan2(dy, dx);      // 弧度：从 shooter 到 player
+        const angleDeg = Phaser.Math.RadToDeg(angleRad);  // 转为角度
+        
+        shooter.setAngle(angleDeg);               // 🔄 旋转炮台对准玩家
+    }
+    
     const now = Date.now();
     
     // 🎯 定时射击逻辑！
@@ -210,11 +231,8 @@ export function update(scene, shooter, healthBlocks) {
             return;
         }
         
-        // 📍 在枪管末端发射子弹（shooter.x + offset）
-        const bulletX = shooter.x + 50;   // 枪管位置
-        const bulletY = shooter.y;
-        
-        createBullet(scene, bulletX, bulletY);
+        // 📍 在炮台中心发射（旋转后会自动朝向玩家）
+        createBullet(scene, shooter.x, shooter.y);
         scene.shooterLastShootTime = now;
     }
     
