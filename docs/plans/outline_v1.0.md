@@ -150,9 +150,57 @@ if (player.y < enemy.y && player.body.touching.down) {
 | 功能 | 描述 |
 |------|------|
 | 🎵 **背景音乐 + 音效** | 跳跃声、踩扁声、胜利音乐 |
-| 💎 **收集品系统** | 金币？道具？ |
+| 💎 **收集品系统** | 金币？道具？ ⭐ STEP 3D-1 ~ 3D-5 |
 | 🔥 **更多敌人类型** | 会飞的？会跳的？ |
 | 🗄️ **多关卡系统** | 不同难度的关卡 |
+
+---
+
+### **Step 3d: 物品/装备系统架构与实现** ⏳ PENDING
+
+```yaml
+目标：模块化物品系统，支持装备槽位、升级机制、跟随移动等完整功能
+参考：src/enemies/的模块化设计模式
+```
+
+#### **完整开发路线图（逐步验证）**
+
+| Step | 任务 | Checkbox | 说明 |
+|------|------|----------|------|
+| **3d-1** | ItemManager 框架搭建 | `[x]` ✅ | 📁 `src/items/ItemManager.js` + types.js + index.js |
+| **3d-2** | Speed Shoes → 模块化物品 | `[x]` ✅ | 👟 `src/items/doubleJumpShoesItem.js`，从 main.js 抽离 |
+| **3d-3** | Update Loop — 物品跟随移动 | `[ ]` | ⚙️ 在 scene.update() 中添加 `itemManager.update()` |
+| **3d-4** | 升级机制测试 | `[ ]` | ⬆️ Level Up + stat_modify 效果验证 |
+| **3d-5** | 新物品实现（Health Pack / Shield） | `[ ]` | ❤️/🛡️ 复制模板，快速迭代新物品 |
+
+#### **itemConfig — 8 个核心维度**
+
+```javascript
+const itemConfig = {
+    id: 'speed_shoes',              // 🆔 唯一标识
+    spawnPosition: {...},           // 📍 初始化位置
+    collectibleBy: {...},           // 👥 谁可以收集
+    visualization: {...},           // 👁️ 可视化设置（persist, attachToBodyPart）
+    equipmentSlot: {...},           // 🎒 装备槽位（bodyPart: head/hands/feet/chest）
+    effects: [...],                 // ⚡ 功能效果（stat_modify, ability_unlock, behavior_change）
+    upgradeable: {...},             // ⬆️ 升级机制（maxLevel, levelUpEffects）
+    duration: {...},                // ⏱️ 持久化时间
+    destructible: {...}             // 💥 能否被破坏
+};
+```
+
+#### **目标目录结构**
+
+```bash
+src/items/
+├── types.js          ← 共享常量（EQUIPMENT_SLOTS, ITEM_TYPES）
+├── index.js          ← 统一导出口
+├── ItemManager.js    ← ⭐ 核心：装备系统管理器
+└── [items]/
+    ├── speedShoesItem.js   — 💨 Speed Shoes
+    ├── healthPackItem.js   — ❤️ Health Pack
+    └── shieldItem.js       — 🛡️ Shield（可破坏）
+```
 
 ---
 
@@ -167,7 +215,17 @@ if (player.y < enemy.y && player.body.touching.down) {
 │   ├── log_2026-03-20_1044.md    ← Step 1a: Phaser 初始化日志
 │   └── log_2026-03-20_1113.md    ← Step 1b: Git + GitHub 配置日志
 ├── src/
-│   └── main.js                    ← 游戏主逻辑
+│   ├── main.js                    ← 游戏主逻辑
+│   ├── enemies/                   ← 👾 敌人模块化目录
+│   │   ├── types.js              ← 共享常量
+│   │   ├── index.js              ← 统一导出口
+│   │   ├── cookieEnemy.js        ← 🍪 Walker 类型
+│   │   ├── fleaEnemy.js          ← 🦟 Jumper 类型
+│   │   └── shooterEnemy.js       ← 🎯 Shooter 类型
+│   └── items/                     ← 💎 物品系统目录 ⭐ NEW!
+│       ├── types.js              ← 共享常量
+│       ├── index.js              ← 统一导出口
+│       └── ItemManager.js        ← ⭐ 核心：装备系统管理器
 ├── index.html                     ← HTML 入口
 ├── package.json                   ← npm 配置
 └── vite.config.js                 ← Vite 配置
@@ -216,6 +274,7 @@ s.git revert    # 撤销最近一次提交
 | Step 2c-1 ~ 2c-3: 跳蚤敌人 🦟 | ✅ COMPLETED | `_待提交_` | Jumper + Player Attraction |
 | Step 2d: 鞋子道具 - 二段跳 💨 | ✅ COMPLETED | `_待提交_` | 金黄色鞋子，位置 (500,360) |
 | **Step 2e: 敌人模块化架构** | ⏳ **IN PROGRESS** | — | 📁 `src/enemies/` 已创建 |
+| **Step 3d-1 ~ 3d-5: 物品系统架构与实现** | ❌ PENDING | — | 📁 `src/items/` 待创建 ⭐ NEW!
 
 ---
 

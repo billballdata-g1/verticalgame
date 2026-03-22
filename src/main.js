@@ -9,6 +9,9 @@ import { cookieEnemy, fleaEnemy } from './enemies';
 // 🎯 Import shooter enemy module
 import * as shooterEnemy from './enemies/shooterEnemy';
 
+// 💎 Import item system modules
+import { createItemManager } from './items/ItemManager.js';
+
 // ============ 全局常量（让 update 函数也能访问）===========
 const PLAYER_MAX_HP = 100;
 const HP_PER_BLOCK = 5;            // 每个小方块代表多少血量
@@ -85,28 +88,31 @@ function create() {
         platforms.add(platformSprite);
     });
 
-    // --- 💨 Step 2d: 鞋子道具（二段跳）---
-    const shoeGraphics = this.make.graphics({ x: 0, y: 0 });
+    // --- 👟 Step 3d-2: 使用模块化 API 创建二段跳鞋物品 ---
+    console.log('👟 Creating Double Jump Shoes via modular API...');
 
-    // 绘制鞋子纹理
-    shoeGraphics.fillStyle(0xffd700);       // 金黄色鞋身
-    shoeGraphics.fillRoundedRect(2, 18, 46, 20, 5);  // 鞋底
-    shoeGraphics.fillStyle(0xffffff);        // 白色鞋面
-    shoeGraphics.fillCircle(30, 15, 12);     // 鞋头圆顶
-    shoeGraphics.fillRect(18, 5, 14, 15);   // 鞋筒
-    shoeGraphics.fillStyle(0xff6b6b);        // 红色鞋带孔
-    shoeGraphics.fillCircle(24, 10, 2);
-    shoeGraphics.fillCircle(28, 10, 2);
-    shoeGraphics.fillStyle(0xffff00);        // 黄色闪电标志（表示速度）
-    shoeGraphics.fillRect(35, 12, 8, 4);
+    // 📦 创建 ItemManager（全局管理所有物品）
+    this.itemManager = createItemManager(this);
 
-    const shoeTexture = shoeGraphics.generateTexture('shoeItem', 50, 40);
-
-    // 💨 鞋子道具 - 放在平台上（玩家收集后获得二段跳）
-    this.shoeItem = this.physics.add.sprite(500, 360, 'shoeItem');
-    this.shoeItem.setBounce(0);              // 不弹跳
-    this.shoeItem.setCollideWorldBounds(true);
-    this.shoeItem.body.setSize(40, 32);      // 稍微小一点的碰撞箱
+    // 👟 创建二段跳鞋 Sprite（使用模块化 API）
+    import('./items/doubleJumpShoesItem.js').then(doubleJumpShoesModule => {
+        this.doubleJumpShoesItem = doubleJumpShoesModule.create(this);
+        console.log('✅ Double Jump Shoes created via modular API');
+        
+        // ⭐ 设置物品收集检测（overlap）
+        this.physics.add.overlap(this.player, this.doubleJumpShoesItem, (player, shoes) => {
+            if (!shoes.active) return;
+            
+            console.log('👟 Double Jump Shoes collected!');
+            doubleJumpShoesModule.collect(this.itemManager, doubleJumpShoesModule.config, shoes);
+        });
+        
+        // 📦 设置物品与地面/平台的碰撞
+        this.physics.add.collider(this.doubleJumpShoesItem, ground);
+        this.physics.add.collider(this.doubleJumpShoesItem, platforms);
+    }).catch(err => {
+        console.error('❌ Failed to load doubleJumpShoes module:', err);
+    });
 
     // 💨 二段跳状态变量
     this.maxJumps = DEFAULT_MAX_JUMPS;       // 当前最大跳跃次数（默认 1）
@@ -157,19 +163,6 @@ function create() {
     // --- 🎯 Step 2e-1c: 射手炮台设置碰撞检测（模块化 API）---
     shooterEnemy.setupColliders(this, this.shooterSprite, ground, platforms, this.player, this.shooterHealthBlocks);
 
-    // --- 🦟 Step 2e: 鞋子道具收集（overlap）---
-    this.physics.add.overlap(this.player, this.shoeItem, (player, shoe) => {
-        if (!shoe.active) return;  // 已经被捡走了，跳过
-
-        console.log('👟 COLLECTED! Double jump unlocked!');
-
-        // 💨 获得二段跳能力
-        this.maxJumps = DOUBLE_JUMP_VALUE;
-
-        // 🗑️ 鞋子消失
-        shoe.destroy();
-    });
-
     // --- 💨 Step 2d: 跳跃键抬起事件（更可靠的二段跳触发）---
     this.input.keyboard.on('keydown-UP', () => {
         if (this.playerHP <= 0) return; // Game Over 时不响应
@@ -209,10 +202,6 @@ function create() {
             console.log('💨 DOUBLE JUMP! jumpsUsed:', this.jumpsUsed, '/', this.maxJumps);
         }
     });
-
-    // --- 🐛 FIX: 鞋子和地面/平台碰撞（不会掉到地下）---
-    this.physics.add.collider(this.shoeItem, ground);
-    this.physics.add.collider(this.shoeItem, platforms);
 
     // ============ 血量系统 ============
     this.playerHP = 100;
@@ -348,6 +337,11 @@ function update() {
         // --- 🎯 Step 2e-1c: 使用模块化 API 更新射手炮台 ---
         if (this.shooterSprite && this.shooterSprite.active) {
             shooterEnemy.update(this, this.shooterSprite, this.shooterHealthBlocks);
+        }
+
+        // --- 👟 Step 3d-3: ItemManager Update（跟随玩家移动）---
+        if (this.itemManager) {
+            this.itemManager.update();
         }
 
         // --- 🔴 玩家血条更新（方块消失效果）---
