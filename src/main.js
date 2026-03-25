@@ -253,9 +253,20 @@ function create() {
         // 重置血量
         this.playerHP = PLAYER_MAX_HP;
 
-        // 💨 重置二段跳状态
+        // 💨 重置二段跳状态（完整重置！）
         this.jumpsUsed = 0;
+        this.maxJumps = DEFAULT_MAX_JUMPS;  // ⭐ FIX: 重置回默认值 1，鞋子效果消失
         this.lastJumpFrame = -1;
+
+        // 👟 解除鞋子视觉绑定（FIX: 防止鞋子贴图粘在复活后的玩家身上）
+        if (this.itemManager && this.doubleJumpShoesItem) {
+            const attachedData = this.itemManager.attachedVisuals.get(this.doubleJumpShoesItem);
+            if (attachedData) {
+                // 从 Map 中移除（停止跟随更新）
+                this.itemManager.attachedVisuals.delete(this.doubleJumpShoesItem);
+                console.log('👟 Detached shoes from player');
+            }
+        }
 
         // 🍪 重置饼干人位置
         if (this.cookieSprite) {
@@ -282,7 +293,38 @@ function create() {
             this.shooterLastShootTime = 0;  // 🔫 重置射击计时器
         }
 
-        // 隐藏 Game Over 文字
+        // 👟 重置物品系统 — 重新生成鞋子道具（如果已被收集）
+        if (this.doubleJumpShoesItem && !this.doubleJumpShoesItem.active) {
+            import('./items/doubleJumpShoesItem.js').then(module => {
+                console.log('👟 Respawn Double Jump Shoes...');
+                
+                // 销毁旧物品
+                this.doubleJumpShoesItem.destroy();
+                
+                // 重新创建新物品（在原始位置）
+                this.doubleJumpShoesItem = module.create(this);
+                
+                // 🔧 FIX: 修复鞋子抖动 — 禁用物理引擎，用 update() 跟随玩家
+                this.doubleJumpShoesItem.body.enable = false;
+                
+                // ⭐ 重新设置物品收集检测（overlap）
+                this.physics.add.overlap(this.player, this.doubleJumpShoesItem, (player, shoes) => {
+                    if (!shoes.active) return;
+                    console.log('👟 Double Jump Shoes collected (respawn)!');
+                    module.collect(this.itemManager, module.config, shoes);
+                });
+                
+                // 📦 重新设置物品与地面/平台的碰撞
+                this.physics.add.collider(this.doubleJumpShoesItem, ground);
+                this.physics.add.collider(this.doubleJumpShoesItem, platforms);
+                
+                console.log('✅ Double Jump Shoes respawned at (500, 360)');
+            }).catch(err => {
+                console.error('❌ Failed to respawn shoes:', err);
+            });
+        }
+
+        // 隐藏 Game Over 文字（强制设置 depth）
         this.gameOverText.setVisible(false);
         this.gameOver = false;
 

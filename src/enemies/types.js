@@ -7,6 +7,12 @@
 export const HP_PER_BLOCK = 5;       // 每个血条小方块代表多少血量
 export const HIT_COOLDOWN = 200;     // 伤害冷却时间（毫秒）
 
+// ========== [NEW] 重生位置类型 ==========
+/**
+ * @typedef {Object|'random'} RespawnPos
+ * @description 敌人重生位置 — 'random' 或具体坐标
+ */
+
 // ========== 敌人工厂接口定义 ==========
 /**
  * @typedef {Object} EnemyFactory
@@ -19,6 +25,8 @@ export const HIT_COOLDOWN = 200;     // 伤害冷却时间（毫秒）
  *   @property {number} receivedDamage - 从玩家受到的伤害（普通接触）
  *   @property {string} textureName - Phaser Texture 名称
  *   @property {{x: number, y: number}} spawnPos - 初始生成位置
+ *   @property {number} [respawnCount] - 🔄 重生次数（默认：1，0=不复生）
+ *   @property {'random'|{x:number,y:number}} [respawnPos] - 🔄 重生位置（默认：'random'）
  * 
  * @property {function(Scene): Object} create - 创建敌人实例
  *   @param {Phaser.Scene} scene - Phaser Scene 对象

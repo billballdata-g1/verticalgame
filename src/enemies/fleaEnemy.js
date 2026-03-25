@@ -17,6 +17,10 @@ export const config = {
     spawnPos: { x: 300, y: 180 },
     jumpIntervalMin: 1500,     // 最短跳跃间隔（毫秒）
     jumpIntervalMax: 3000,     // 最长跳跃间隔
+    
+    // 🔄 [NEW] 重生机制
+    respawnCount: 1,          // 剩余重生次数（默认：1）
+    respawnPos: 'random',     // 重生位置（'random' | {x, y}）
 };
 
 // ========== 创建敌人 ==========
@@ -62,6 +66,10 @@ export function create(scene) {
     
     // 🦟 跳蚤行为控制变量（保存在 scene 中）
     scene.fleaLastJumpTime = 0;             // 上次跳跃时间（用于随机跳跃）
+    
+    // 🔄 [NEW] 初始化重生属性
+    flea.respawnCount = config.respawnCount;
+    flea.respawnPos = config.respawnPos;
     
     console.log(`✅ Flea enemy created at (${config.spawnPos.x}, ${config.spawnPos.y}), HP: ${config.hp}`);
     
@@ -121,8 +129,7 @@ export function setupColliders(scene, flea, ground, platforms, player, healthBlo
             
             if (fleaSprite.hp <= 0) {
                 console.log('💀 Flea crushed!');
-                fleaSprite.destroy();
-                cleanup(scene, healthBlocks);  // 🔴 直接调用 cleanup（不是 fleaEnemy.cleanup）
+                handleEnemyDeath(scene, fleaSprite, healthBlocks);  // ⭐ [NEW]
             }
             return;
         }
@@ -148,8 +155,7 @@ export function setupColliders(scene, flea, ground, platforms, player, healthBlo
             // 💀 跳蚤死亡
             if (fleaSprite.hp <= 0) {
                 console.log('💀 Flea defeated!');
-                fleaSprite.destroy();
-                cleanup(scene, healthBlocks);  // 🔴 直接调用 cleanup（不是 fleaEnemy.cleanup）
+                handleEnemyDeath(scene, fleaSprite, healthBlocks);  // ⭐ [NEW]
             }
         }
     });
@@ -220,5 +226,40 @@ export function update(scene, flea, healthBlocks) {
             // 🐌 缓慢左右移动探索
             flea.setVelocityX(randomDirection * 30);
         }
+    }
+}
+
+// ========== [NEW] 统一死亡处理（含重生逻辑）==========
+function handleEnemyDeath(scene, flea, healthBlocks) {
+    if (flea.respawnCount > 0) {
+        // 🔄 还有重生次数！
+        console.log(`🔄 Flea respawning... (${flea.respawnCount} times left)`);
+        
+        flea.respawnCount--;
+        flea.hp = config.hp;              // 恢复血量
+        
+        // 📍 确定重生位置
+        let respawnX, respawnY;
+        if (flea.respawnPos === 'random') {
+            // 🎲 随机位置（屏幕内）
+            respawnX = Phaser.Math.Between(100, 700);
+            respawnY = Phaser.Math.Between(150, 450);
+        } else {
+            // 📍 固定坐标
+            respawnX = flea.respawnPos.x;
+            respawnY = flea.respawnPos.y;
+        }
+        
+        // ⚡ 重生！
+        flea.setPosition(respawnX, respawnY);
+        flea.setActive(true);
+        flea.setVisible(true);
+        flea.setVelocity(0, 0);
+        console.log(`✅ Flea respawned at (${respawnX}, ${respawnY}) — ${flea.respawnCount} times left`);
+    } else {
+        // 💀 重生次数用完，真正死亡
+        console.log('💀 Flea permanently defeated (respawn count: 0)');
+        flea.destroy();
+        cleanup(scene, healthBlocks);     // 隐藏所有血条方块
     }
 }

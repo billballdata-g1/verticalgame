@@ -21,6 +21,10 @@ export const config = {
     // 🎯 射击参数
     shootInterval: 2000,      // 每 2 秒发射一次
     bulletSpeed: 300,         // 子弹速度（向右）
+    
+    // 🔄 [NEW] 重生机制
+    respawnCount: 1,          // 剩余重生次数（默认：1）
+    respawnPos: 'random',     // 重生位置（'random' | {x, y}）
 };
 
 // ========== 创建敌人 ==========
@@ -68,6 +72,10 @@ export function create(scene) {
     
     // 🎯 射击控制变量（保存在 scene 中）
     scene.shooterLastShootTime = 0;
+    
+    // 🔄 [NEW] 初始化重生属性
+    shooter.respawnCount = config.respawnCount;
+    shooter.respawnPos = config.respawnPos;
     
     console.log(`✅ Shooter enemy created at (${config.spawnPos.x}, ${config.spawnPos.y}), HP: ${config.hp}`);
     
@@ -123,8 +131,7 @@ export function setupColliders(scene, shooter, ground, platforms, player, health
             
             if (shooterSprite.hp <= 0) {
                 console.log('💀 Shooter crushed!');
-                shooterSprite.destroy();
-                cleanup(scene, healthBlocks);     // 🔴 清理血条！
+                handleEnemyDeath(scene, shooterSprite, healthBlocks);  // ⭐ [NEW]
             }
             return;
         }
@@ -147,8 +154,7 @@ export function setupColliders(scene, shooter, ground, platforms, player, health
             
             if (shooterSprite.hp <= 0) {
                 console.log('💀 Shooter defeated!');
-                shooterSprite.destroy();
-                cleanup(scene, healthBlocks);     // 🔴 清理血条！
+                handleEnemyDeath(scene, shooterSprite, healthBlocks);  // ⭐ [NEW]
             }
         }
     });
@@ -250,5 +256,40 @@ export function update(scene, shooter, healthBlocks) {
             healthBlocks[i].setPosition(startX + i * config.healthBlockSize, barCenterY);
             healthBlocks[i].setVisible(i < visibleBlocks);
         }
+    }
+}
+
+// ========== [NEW] 统一死亡处理（含重生逻辑）==========
+function handleEnemyDeath(scene, shooter, healthBlocks) {
+    if (shooter.respawnCount > 0) {
+        // 🔄 还有重生次数！
+        console.log(`🔄 Shooter respawning... (${shooter.respawnCount} times left)`);
+        
+        shooter.respawnCount--;
+        shooter.hp = config.hp;              // 恢复血量
+        scene.shooterLastShootTime = 0;      // 🔫 重置射击计时器
+        
+        // 📍 确定重生位置
+        let respawnX, respawnY;
+        if (shooter.respawnPos === 'random') {
+            // 🎲 随机位置（屏幕内）
+            respawnX = Phaser.Math.Between(100, 700);
+            respawnY = Phaser.Math.Between(150, 450);
+        } else {
+            // 📍 固定坐标
+            respawnX = shooter.respawnPos.x;
+            respawnY = shooter.respawnPos.y;
+        }
+        
+        // ⚡ 重生！
+        shooter.setPosition(respawnX, respawnY);
+        shooter.setActive(true);
+        shooter.setVisible(true);
+        console.log(`✅ Shooter respawned at (${respawnX}, ${respawnY}) — ${shooter.respawnCount} times left`);
+    } else {
+        // 💀 重生次数用完，真正死亡
+        console.log('💀 Shooter permanently defeated (respawn count: 0)');
+        shooter.destroy();
+        cleanup(scene, healthBlocks);     // 隐藏所有血条方块
     }
 }

@@ -15,6 +15,10 @@ export const config = {
     receivedDamage: 15,
     textureName: 'cookieEnemy',
     spawnPos: { x: 600, y: 200 },
+    
+    // 🔄 [NEW] 重生机制
+    respawnCount: 1,          // 剩余重生次数（默认：1）
+    respawnPos: 'random',     // 重生位置（'random' | {x, y}）
 };
 
 // ========== 创建敌人 ==========
@@ -57,7 +61,13 @@ export function create(scene) {
     
     // 初始化 HP
     enemy.hp = config.hp;
+    
+    // 🔄 [NEW] 初始化重生属性
+    enemy.respawnCount = config.respawnCount;   // 剩余重生次数
+    enemy.respawnPos = config.respawnPos;       // 重生位置（'random' | {x, y}）
+    
     console.log(`✅ Cookie enemy created at (${config.spawnPos.x}, ${config.spawnPos.y}), HP: ${config.hp}`);
+    console.log(`   🔄 Respawn: ${enemy.respawnCount} times left, pos: ${enemy.respawnPos}`);
     
     return enemy;
 }
@@ -122,8 +132,7 @@ export function setupColliders(scene, enemy, ground, platforms, player, healthBl
             
             if (enemySprite.hp <= 0) {
                 console.log('💀 Enemy crushed by stomp!');
-                enemySprite.destroy();
-                cleanup(scene, healthBlocks);  // 🔴 直接调用 cleanup（不是 cookieEnemy.cleanup）
+                handleEnemyDeath(scene, enemySprite, healthBlocks);  // ⭐ [NEW] 使用统一死亡处理
             }
             
             return; // ⭐ 踩扁时跳过普通碰撞的伤害逻辑
@@ -149,11 +158,10 @@ export function setupColliders(scene, enemy, ground, platforms, player, healthBl
             const direction = playerSprite.x < enemySprite.x ? -1 : 1;
             playerSprite.setVelocity(direction * 150, -200);
             
-            // 🔴 检查敌人死亡 — 同时清除血条！
+            // 🔴 检查敌人死亡 — ⭐ [NEW] 使用统一死亡处理
             if (enemySprite.hp <= 0) {
                 console.log('💥 饼干人被击败了！');
-                enemySprite.destroy();          // 删除敌人
-                cleanup(scene, healthBlocks);     // 🔴 隐藏所有血条方块
+                handleEnemyDeath(scene, enemySprite, healthBlocks);  // ⭐ [NEW]
             }
         }
         
@@ -219,5 +227,40 @@ export function update(scene, enemy, healthBlocks) {
             const shouldBeVisible = (i < visibleBlocks);
             healthBlocks[i].setVisible(shouldBeVisible);
         }
+    }
+}
+
+// ========== [NEW] 统一死亡处理（含重生逻辑）==========
+function handleEnemyDeath(scene, enemy, healthBlocks) {
+    if (enemy.respawnCount > 0) {
+        // 🔄 还有重生次数！
+        console.log(`🔄 Enemy respawning... (${enemy.respawnCount} times left)`);
+        
+        enemy.respawnCount--;
+        enemy.hp = config.hp;              // 恢复血量
+        
+        // 📍 确定重生位置
+        let respawnX, respawnY;
+        if (enemy.respawnPos === 'random') {
+            // 🎲 随机位置（屏幕内）
+            respawnX = Phaser.Math.Between(100, 700);
+            respawnY = Phaser.Math.Between(150, 450);
+        } else {
+            // 📍 固定坐标
+            respawnX = enemy.respawnPos.x;
+            respawnY = enemy.respawnPos.y;
+        }
+        
+        // ⚡ 重生！
+        enemy.setPosition(respawnX, respawnY);
+        enemy.setActive(true);
+        enemy.setVisible(true);
+        enemy.setVelocity(0, 0);
+        console.log(`✅ Enemy respawned at (${respawnX}, ${respawnY}) — ${enemy.respawnCount} times left`);
+    } else {
+        // 💀 重生次数用完，真正死亡
+        console.log('💀 Enemy permanently defeated (respawn count: 0)');
+        enemy.destroy();
+        cleanup(scene, healthBlocks);     // 隐藏所有血条方块
     }
 }
